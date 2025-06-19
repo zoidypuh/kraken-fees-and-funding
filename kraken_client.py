@@ -72,7 +72,7 @@ def generate_signature(api_secret: str, data: str, nonce: str, path: str) -> str
 
 def make_request(path: str, api_key: str, api_secret: str, query: dict = None) -> dict:
     """
-    Make authenticated request to Kraken Futures API.
+    Make authenticated request to Kraken Futures API with retry logic.
     
     Args:
         path: API endpoint path (e.g., "/api/history/v3/account-log")
@@ -84,7 +84,7 @@ def make_request(path: str, api_key: str, api_secret: str, query: dict = None) -
         Response data as dict
         
     Raises:
-        KrakenAPIError: If request fails
+        KrakenAPIError: If request fails after retries
     """
     url = f"{FUTURES_BASE_URL}{path}"
     
@@ -98,41 +98,65 @@ def make_request(path: str, api_key: str, api_secret: str, query: dict = None) -
     # Check if this is an execution events request (needs different auth)
     is_executions = "executions" in path
     
-    # Generate nonce
-    nonce = str(int(time.time() * 1000))
+    # Retry logic with exponential backoff
+    retry_delay = INITIAL_RETRY_DELAY
+    last_error = None
     
-    # Prepare headers
-    headers = {
-        "APIKey": api_key,
-        "Authent": get_signature(api_secret, query_str, nonce, path),
-        "Nonce": nonce
-    }
-    
-    try:
-        # Make the request
-        req = urllib.request.Request(
-            url=url,
-            headers=headers,
-            method="GET"
-        )
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Generate nonce for this attempt
+            nonce = str(int(time.time() * 1000))
+            
+            # Prepare headers
+            headers = {
+                "APIKey": api_key,
+                "Authent": get_signature(api_secret, query_str, nonce, path),
+                "Nonce": nonce
+            }
+            
+            # Make the request
+            req = urllib.request.Request(
+                url=url,
+                headers=headers,
+                method="GET"
+            )
+            
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                
+                # Check for API errors in response
+                if "error" in data and data["error"]:
+                    raise KrakenAPIError(f"API Error: {data['error']}")
+                
+                return data
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode() if e.fp else ""
+            logger.error(f"HTTP Error {e.code}: {e.reason}")
+            logger.error(f"Error body: {error_body}")
+            
+            # Check if it's a rate limit error
+            if e.code == 429 or "rate limit" in error_body.lower():
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Rate limit hit, retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                    continue
+            
+            last_error = f"HTTP Error {e.code}: {e.reason} - {error_body}"
+            
+        except Exception as e:
+            logger.error(f"Request failed: {str(e)}")
+            last_error = str(e)
         
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            
-            # Check for API errors in response
-            if "error" in data and data["error"]:
-                raise KrakenAPIError(f"API Error: {data['error']}")
-            
-            return data
-            
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode() if e.fp else ""
-        logger.error(f"HTTP Error {e.code}: {e.reason}")
-        logger.error(f"Error body: {error_body}")
-        raise KrakenAPIError(f"HTTP Error {e.code}: {e.reason} - {error_body}")
-    except Exception as e:
-        logger.error(f"Request failed: {str(e)}")
-        raise KrakenAPIError(f"Request failed: {str(e)}")
+        # If we get here and it's not the last attempt, retry with backoff
+        if attempt < MAX_RETRIES - 1:
+            logger.warning(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Exponential backoff
+    
+    # All retries exhausted
+    raise KrakenAPIError(f"Request failed after {MAX_RETRIES} attempts: {last_error}")
 
 
 def get_account_logs(api_key: str, api_secret: str, since_ts: int, before_ts: int, limit: int = 500) -> list:

@@ -7,227 +7,414 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='image.png') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
+            background-color: #f0f2f5;
             color: #333;
-            text-align: center;
-            margin-bottom: 30px;
         }
-        .api-section {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 30px;
+        
+        /* Header Styles */
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title img {
+            height: 32px;
+            width: 32px;
+        }
+        
+        .header-api-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .api-key-display {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #666;
+            font-family: monospace;
             position: relative;
-            transition: opacity 0.3s ease;
-        }
-        .api-section.dimmed {
-            opacity: 0.6;
             cursor: pointer;
+            transition: all 0.3s ease;
         }
-        .api-section.dimmed::after {
+        
+        .api-key-display:hover {
+            background: #e0e0e0;
+        }
+        
+        .api-key-display:hover::after {
             content: "Click to edit credentials";
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            top: 100%;
+            right: 0;
+            margin-top: 5px;
+            background: #333;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .cache-indicator {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
             font-weight: 500;
-            color: #495057;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
         }
-        .api-section.dimmed:hover::after {
-            opacity: 1;
+        
+        /* Main Container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        .api-section.dimmed input,
-        .api-section.dimmed button {
-            pointer-events: none;
+        
+        /* Section Styles */
+        .section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            overflow: hidden;
         }
-        .api-section h3 {
-            margin-top: 0;
-            color: #495057;
+        
+        .section-header {
+            padding: 20px 30px;
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .section-content {
+            padding: 30px;
+        }
+        
+        /* API Configuration Section */
+        .api-config-section {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            text-align: center;
+        }
+        
+        .api-config-content {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
         .api-info {
             background: #e3f2fd;
             border-left: 4px solid #2196f3;
-            padding: 12px;
-            margin-bottom: 20px;
+            padding: 16px;
+            margin-bottom: 30px;
             font-size: 14px;
             color: #1976d2;
+            text-align: left;
+            border-radius: 4px;
         }
+        
         .api-form {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: flex-end;
+            text-align: left;
         }
-        .api-form-group {
-            flex: 1;
-            min-width: 250px;
+        
+        .form-group {
+            margin-bottom: 20px;
         }
-        .api-form label {
+        
+        .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: #495057;
             font-weight: 500;
-        }
-        .api-form input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
             font-size: 14px;
         }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196f3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+        
         .api-buttons {
             display: flex;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 12px;
+            margin-top: 24px;
         }
+        
         .api-status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
+            margin-top: 20px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
             display: none;
         }
+        
         .api-status.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+        
         .api-status.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        .controls {
+        
+        /* Button Styles */
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        
+        button.primary {
+            background-color: #2196f3;
+            color: white;
+        }
+        
+        button.primary:hover {
+            background-color: #1976d2;
+        }
+        
+        button.secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        button.secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        button.danger {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        
+        button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        button:not(.active):not(.primary):not(.secondary):not(.danger) {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        
+        button:not(.active):not(.primary):not(.secondary):not(.danger):hover {
+            background-color: #d0d0d0;
+        }
+        
+        /* Open Positions Table */
+        .positions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .positions-table th {
+            background-color: #fafafa;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #e0e0e0;
+            white-space: nowrap;
+        }
+        
+        .positions-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .positions-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .positions-table .positive {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+        
+        .positions-table .negative {
+            color: #f44336;
+            font-weight: 600;
+        }
+        
+        /* Chart Controls */
+        .chart-controls {
             display: flex;
-            justify-content: center;
-            gap: 20px;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
             flex-wrap: wrap;
+            gap: 20px;
         }
+        
         .control-group {
             display: flex;
             gap: 10px;
             align-items: center;
         }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s ease;
+        
+        .control-group label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
         }
-        button.active {
-            background-color: #4CAF50;
-            color: white;
-        }
-        button:not(.active) {
-            background-color: #e0e0e0;
-            color: #333;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        button.primary {
-            background-color: #2196f3;
-            color: white;
-        }
-        button.danger {
-            background-color: #f44336;
-            color: white;
-        }
-        button.secondary {
-            background-color: #6c757d;
-            color: white;
-        }
+        
         select {
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 6px;
             border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
         }
+        
+        /* Totals Display */
+        .totals {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .total-item {
+            text-align: center;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-width: 150px;
+        }
+        
+        .total-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .total-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .fees-total { color: #f44336; }
+        .funding-total { color: #fb8500; }
+        .combined-total { color: #ff9800; }
+        
+        /* Chart Container */
         .chart-container {
             position: relative;
             height: 500px;
             margin-top: 20px;
         }
-        .loading {
-            text-align: center;
-            padding: 50px;
-            font-size: 18px;
-            color: #666;
-        }
-        .error {
-            text-align: center;
-            padding: 20px;
-            background-color: #ffebee;
-            color: #c62828;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .info {
-            text-align: center;
-            margin: 20px 0;
-            color: #666;
-            font-size: 14px;
-        }
-        .totals {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-        .total-item {
-            text-align: center;
-            padding: 15px 25px;
-            background: #f5f5f5;
-            border-radius: 8px;
-        }
-        .total-label {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .total-value {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .fees-total { color: #f44336; }
-        .funding-total { color: #fb8500; }
-        .combined-total { color: #ff9800; }
-        .hidden { display: none !important; }
         
-        /* Loading overlay styles */
+        /* Info Text */
+        .info-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 5px;
+        }
+        
+        /* Loading States */
         .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -271,27 +458,66 @@
             transition: width 0.3s ease;
         }
         
-        .cache-indicator {
-            display: inline-block;
-            padding: 4px 8px;
-            background-color: #4CAF50;
-            color: white;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-left: 10px;
+        /* Error State */
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 16px 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
         }
         
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state-subtext {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+        
+        .text-muted {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .mt-1 { margin-top: 8px; }
+        .mt-2 { margin-top: 16px; }
+        .mt-3 { margin-top: 24px; }
+        
+        /* Tooltip */
         #tooltip {
             position: absolute;
-            background-color: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.95);
             color: white;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
             pointer-events: none;
             z-index: 1000;
             max-width: 400px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            line-height: 1.5;
         }
         
         #tooltip .date {
@@ -301,233 +527,220 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        #tooltip .fees-section,
-        #tooltip .funding-section {
-            margin-bottom: 8px;
-        }
-        
-        #tooltip .label {
-            color: #ccc;
-            margin-bottom: 4px;
-        }
-        
-        #tooltip .trades-list {
-            margin-top: 4px;
-            padding-left: 12px;
-        }
-        
-        #tooltip .trade-item {
-            margin-bottom: 2px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 11px;
-        }
-        
-        #tooltip .asset-group {
-            margin-bottom: 6px;
-        }
-        
-        #tooltip .asset-name {
-            color: #58a6ff;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-        
-        #tooltip .subtotal {
-            color: #999;
-            font-style: italic;
-            margin-top: 2px;
-            padding-top: 2px;
-            border-top: 1px dashed rgba(255, 255, 255, 0.2);
-        }
-        
-        #tooltip .total-section {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            font-weight: 600;
-        }
-        
         #tooltip .value {
             font-weight: 600;
         }
         
-        #tooltip .fees-value {
-            color: #f44336;
-        }
+        #tooltip .fees-value { color: #f44336; }
+        #tooltip .funding-value { color: #fb8500; }
+        #tooltip .total-value { color: #ff9800; }
         
-        #tooltip .funding-value {
-            color: #fb8500;
-        }
-        
-        #tooltip .total-value {
-            color: #ff9800;
-        }
-        
-        /* Positions Table Styles */
-        .positions-table-container {
-            margin-top: 20px;
-            overflow-x: auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .positions-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        
-        .positions-table th {
-            background-color: #f5f5f5;
-            padding: 12px 15px;
-            text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
-            white-space: nowrap;
-        }
-        
-        .positions-table td {
-            padding: 10px 15px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .positions-table tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .positions-table .side-long {
-            color: #4CAF50;
-            font-weight: 600;
-        }
-        
-        .positions-table .side-short {
-            color: #f44336;
-            font-weight: 600;
-        }
-        
-        .positions-table .positive {
-            color: #4CAF50;
-            font-weight: 600;
-        }
-        
-        .positions-table .negative {
-            color: #f44336;
-            font-weight: 600;
-        }
-        
-        .positions-table .cost-cell {
-            font-weight: 600;
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+            
+            .main-container {
+                padding: 10px;
+            }
+            
+            .section-content {
+                padding: 20px;
+            }
+            
+            .chart-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .totals {
+                gap: 15px;
+            }
+            
+            .total-item {
+                padding: 15px 20px;
+                min-width: 120px;
+            }
+            
+            .positions-table {
+                font-size: 12px;
+            }
+            
+            .positions-table th,
+            .positions-table td {
+                padding: 8px 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Kraken Funding & Fees Dashboard</h1>
-        
-        <!-- API Configuration Section -->
-        <div class="api-section{% if has_credentials %} dimmed{% endif %}" id="apiSection" onclick="handleSectionClick(event)">
-            <h3>🔑 API Configuration</h3>
-            <div class="api-info">
-                ℹ️ Enter your <strong>read-only</strong> Kraken Futures API keys below. These credentials are stored securely in your browser and are never sent to any external server.
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <img src="{{ url_for('static', filename='image.png') }}" alt="Kraken">
+                Kraken Funding & Fees Dashboard
             </div>
-            
-            <div class="api-form">
-                <div class="api-form-group">
-                    <label for="apiKey">API Key</label>
-                    <input type="text" id="apiKey" placeholder="Enter your Kraken API key" {% if has_credentials %}value="{{ masked_api_key }}" readonly{% endif %}>
-                </div>
-                <div class="api-form-group">
-                    <label for="apiSecret">API Secret</label>
-                    <input type="password" id="apiSecret" placeholder="Enter your Kraken API secret" {% if has_credentials %}value="************************" readonly{% endif %}>
-                </div>
-            </div>
-            
-            <div class="api-buttons">
-                <button class="primary" id="saveBtn" onclick="saveCredentials()" {% if has_credentials %}style="display: none;"{% endif %}>Save Credentials</button>
-                <button class="secondary" id="editBtn" onclick="editCredentials()" {% if not has_credentials %}style="display: none;"{% endif %}>Edit Credentials</button>
-                <button class="danger" id="clearBtn" onclick="clearCredentials()" {% if not has_credentials %}style="display: none;"{% endif %}>Clear Credentials</button>
+            <div class="header-api-info">
                 <span id="cacheIndicator" class="cache-indicator" style="display: none;">⚡ Cached</span>
+                {% if has_credentials %}
+                <div class="api-key-display" onclick="showApiConfig()">
+                    🔑 {{ masked_api_key }}
+                </div>
+                {% endif %}
             </div>
-            
-            <div class="api-status" id="apiStatus"></div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- API Configuration Section (shown when no credentials) -->
+        <div id="apiConfigSection" class="section api-config-section {% if has_credentials %}hidden{% endif %}">
+            <div class="section-content">
+                <div class="api-config-content">
+                    <h2 style="margin-bottom: 20px;">Configure API Access</h2>
+                    <div class="api-info">
+                        ℹ️ Enter your <strong>read-only</strong> Kraken Futures API keys below. These credentials are stored securely in your browser and are never sent to any external server.
+                    </div>
+                    
+                    <form class="api-form" onsubmit="event.preventDefault(); saveCredentials();">
+                        <div class="form-group">
+                            <label for="apiKey">API Key</label>
+                            <input type="text" id="apiKey" placeholder="Enter your Kraken API key" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="apiSecret">API Secret</label>
+                            <input type="password" id="apiSecret" placeholder="Enter your Kraken API secret" required>
+                        </div>
+                        
+                        <div class="api-buttons">
+                            <button type="submit" class="primary">Save Credentials</button>
+                            <button type="button" class="secondary hidden" id="cancelEditBtn" onclick="hideApiConfig()">Cancel</button>
+                        </div>
+                    </form>
+                    
+                    <div class="api-status" id="apiStatus"></div>
+                </div>
+            </div>
         </div>
         
+        <!-- Dashboard Content (shown when credentials exist) -->
         <div id="dashboardContent" {% if not has_credentials %}class="hidden"{% endif %}>
-            <div class="controls">
-                <div class="control-group">
-                    <label>View Mode:</label>
-                    <button id="btnFees" onclick="setMode('fees')">Fees Only</button>
-                    <button id="btnFunding" onclick="setMode('funding')">Funding Only</button>
-                    <button id="btnCombined" onclick="setMode('combined')" class="active">Combined (Stacked)</button>
-                    <button id="btnCumulative" onclick="setMode('cumulative')">Cumulative (Lines)</button>
+            <!-- Open Positions Section -->
+            <div id="positionsSection" class="section hidden">
+                <div class="section-header">
+                    <h2 class="section-title">Open Positions</h2>
                 </div>
-                
-                <div class="control-group">
-                    <label>Time Period:</label>
-                    <select id="daySelector" onchange="filterAndDisplayData(parseInt(this.value))">
-                        <option value="7">Last 7 days</option>
-                        <option value="14">Last 14 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="60">Last 60 days</option>
-                        <option value="90">Last 90 days</option>
-                    </select>
-                    <button class="secondary" onclick="updateData(true)" style="margin-left: 10px;">🔄 Refresh</button>
-                </div>
-            </div>
-            
-            <div class="totals" id="totals"></div>
-            
-            <div class="info">
-                Days are defined from 00:00 to 00:00 UTC<br>
-                <span style="color: #f44336;">●</span> Red = Trading Fees | 
-                <span style="color: #fb8500;">●</span> Orange = Funding Costs |
-                <span style="color: #ff9800;">●</span> Yellow = Total Cost
-            </div>
-            
-            <div id="loading" class="loading">Loading data...</div>
-            <div id="error" class="error" style="display: none;"></div>
-            
-            <div class="chart-container">
-                <div class="loading-overlay" id="loadingOverlay" style="display: none;">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">
-                        <div id="loadingMessage">Loading data...</div>
-                        <div class="loading-progress">
-                            <div class="loading-progress-bar" id="loadingProgress" style="width: 0%"></div>
-                        </div>
+                <div class="section-content">
+                    <div style="overflow-x: auto;">
+                        <table class="positions-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Quantity</th>
+                                    <th>Accumulated Funding</th>
+                                    <th>Accumulated Fees</th>
+                                    <th>Opened Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positionsTableBody">
+                                <!-- Positions will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="cappedDataNote" class="text-muted mt-2" style="text-align: center; display: none;">
+                        * For positions older than 1 year, accumulated values are shown for the last year only.
+                    </p>
+                    <div id="noPositions" class="empty-state hidden">
+                        <div class="empty-state-icon">📊</div>
+                        <div class="empty-state-text">No open positions</div>
+                        <div class="empty-state-subtext">You don't have any open positions at the moment</div>
                     </div>
                 </div>
-                <canvas id="myChart"></canvas>
             </div>
             
-            <!-- Open Positions Table -->
-            <div id="positionsSection" style="display: none;">
-                <h2 style="text-align: center; margin-top: 40px; margin-bottom: 20px;">Open Positions</h2>
-                <div class="positions-table-container">
-                    <table id="positionsTable" class="positions-table">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Quantity</th>
-                                <th>Avg Price</th>
-                                <th>Current Price</th>
-                                <th>Unrealized P&L</th>
-                                <th>Accumulated Funding</th>
-                                <th>Accumulated Fees</th>
-                                <th>Net Unrealized P&L</th>
-                                <th>Opened Date</th>
-                            </tr>
-                        </thead>
-                        <tbody id="positionsTableBody">
-                            <!-- Positions will be inserted here -->
-                        </tbody>
-                    </table>
+            <!-- Fee and Funding Analysis Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Fee and Funding Analysis</h2>
+                    <button class="secondary" onclick="updateData(true)">🔄 Refresh</button>
                 </div>
-                <p id="cappedDataNote" style="text-align: center; margin-top: 10px; color: #666; font-size: 12px; display: none;">
-                    * For positions older than 1 year, accumulated values are shown for the last year only.
-                </p>
+                <div class="section-content">
+                    <div class="chart-controls">
+                        <div class="control-group">
+                            <label>View Mode:</label>
+                            <button id="btnFees" onclick="setMode('fees')">Fees Only</button>
+                            <button id="btnFunding" onclick="setMode('funding')">Funding Only</button>
+                            <button id="btnCombined" onclick="setMode('combined')" class="active">Combined (Stacked)</button>
+                            <button id="btnCumulative" onclick="setMode('cumulative')">Cumulative (Lines)</button>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>Time Period:</label>
+                            <select id="daySelector" onchange="filterAndDisplayData(parseInt(this.value))">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="totals" id="totals">
+                        <div class="total-item">
+                            <div class="total-label">Total Fees</div>
+                            <div class="total-value fees-total">$0.00</div>
+                        </div>
+                        <div class="total-item">
+                            <div class="total-label">Total Funding</div>
+                            <div class="total-value funding-total">$0.00</div>
+                        </div>
+                        <div class="total-item">
+                            <div class="total-label">Total Cost</div>
+                            <div class="total-value combined-total">$0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div id="error" class="error" style="display: none;"></div>
+                    
+                    <div class="chart-container">
+                        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">
+                                <div id="loadingMessage">Loading data...</div>
+                                <div class="loading-progress">
+                                    <div class="loading-progress-bar" id="loadingProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    
+                    <div class="info-text">
+                        Days are defined from 00:00 to 00:00 UTC<br>
+                        <span class="legend-item">
+                            <span class="legend-color" style="background: #f44336;"></span>
+                            Trading Fees
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-color" style="background: #fb8500;"></span>
+                            Funding Costs
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-color" style="background: #ff9800;"></span>
+                            Total Cost
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -538,7 +751,7 @@
         let chart = null;
         let currentMode = 'combined';
         let currentData = null;
-        let allData = null;  // Store all 90 days of data
+        let allData = null;
         let tradesData = {};
         let hasCredentials = {{ 'true' if has_credentials else 'false' }};
         let isEditing = false;
@@ -550,32 +763,29 @@
                 updateData();
             }
         };
-
-        function handleSectionClick(event) {
-            // Only handle clicks on the dimmed section background
-            if (hasCredentials && !isEditing && event.target.classList.contains('api-section')) {
-                editCredentials();
-            }
+        
+        function showApiConfig() {
+            // Hide dashboard content
+            document.getElementById('dashboardContent').classList.add('hidden');
+            // Show API config section
+            document.getElementById('apiConfigSection').classList.remove('hidden');
+            // Show cancel button
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            // Clear fields for editing
+            document.getElementById('apiKey').value = '';
+            document.getElementById('apiSecret').value = '';
+            document.getElementById('apiKey').focus();
+            isEditing = true;
         }
         
-        function editCredentials() {
-            isEditing = true;
-            const section = document.getElementById('apiSection');
-            section.classList.remove('dimmed');
-            
-            // Clear the fields for new input
-            document.getElementById('apiKey').value = '';
-            document.getElementById('apiKey').removeAttribute('readonly');
-            document.getElementById('apiSecret').value = '';
-            document.getElementById('apiSecret').removeAttribute('readonly');
-            
-            // Update button visibility
-            document.getElementById('saveBtn').style.display = 'inline-block';
-            document.getElementById('editBtn').style.display = 'none';
-            document.getElementById('clearBtn').style.display = 'none';
-            
-            // Focus on the API key field
-            document.getElementById('apiKey').focus();
+        function hideApiConfig() {
+            if (hasCredentials) {
+                // Show dashboard content
+                document.getElementById('dashboardContent').classList.remove('hidden');
+                // Hide API config section
+                document.getElementById('apiConfigSection').classList.add('hidden');
+                isEditing = false;
+            }
         }
 
         function saveCredentials() {
@@ -621,28 +831,25 @@
                     hasCredentials = true;
                     isEditing = false;
                     
-                    // Update UI to show credentials are saved
-                    const section = document.getElementById('apiSection');
-                    section.classList.add('dimmed');
-                    
-                    // Show masked API key
+                    // Update header with masked API key
                     const maskedKey = apiKey.length > 12 
                         ? apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4)
                         : apiKey;
-                    document.getElementById('apiKey').value = maskedKey;
-                    document.getElementById('apiKey').setAttribute('readonly', 'readonly');
                     
-                    // Mask the secret
-                    document.getElementById('apiSecret').value = '************************';
-                    document.getElementById('apiSecret').setAttribute('readonly', 'readonly');
+                    // Update header API info
+                    const headerApiInfo = document.querySelector('.header-api-info');
+                    if (!headerApiInfo.querySelector('.api-key-display')) {
+                        const apiKeyDisplay = document.createElement('div');
+                        apiKeyDisplay.className = 'api-key-display';
+                        apiKeyDisplay.onclick = showApiConfig;
+                        apiKeyDisplay.innerHTML = `🔑 ${maskedKey}`;
+                        headerApiInfo.appendChild(apiKeyDisplay);
+                    } else {
+                        headerApiInfo.querySelector('.api-key-display').innerHTML = `🔑 ${maskedKey}`;
+                    }
                     
-                    // Update button visibility
-                    document.getElementById('saveBtn').style.display = 'none';
-                    document.getElementById('editBtn').style.display = 'inline-block';
-                    document.getElementById('clearBtn').style.display = 'inline-block';
-                    
-                    // Show dashboard
-                    document.getElementById('dashboardContent').classList.remove('hidden');
+                    // Hide API config and show dashboard
+                    hideApiConfig();
                     
                     // Load data
                     updateData();
@@ -657,48 +864,6 @@
                 } else {
                     showStatus(error.message || 'Failed to save credentials', 'error');
                 }
-            });
-        }
-
-        function clearCredentials() {
-            if (!confirm('Are you sure you want to clear your API credentials?')) {
-                return;
-            }
-            
-            fetch('/api/clear-credentials', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                showStatus('Credentials cleared', 'success');
-                hasCredentials = false;
-                isEditing = false;
-                
-                // Update UI
-                const section = document.getElementById('apiSection');
-                section.classList.remove('dimmed');
-                
-                // Clear fields
-                document.getElementById('apiKey').value = '';
-                document.getElementById('apiKey').removeAttribute('readonly');
-                document.getElementById('apiSecret').value = '';
-                document.getElementById('apiSecret').removeAttribute('readonly');
-                
-                // Update button visibility
-                document.getElementById('saveBtn').style.display = 'inline-block';
-                document.getElementById('editBtn').style.display = 'none';
-                document.getElementById('clearBtn').style.display = 'none';
-                
-                // Hide dashboard
-                document.getElementById('dashboardContent').classList.add('hidden');
-                
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
-                }
-            })
-            .catch(error => {
-                showStatus('Error clearing credentials: ' + error.message, 'error');
             });
         }
 
@@ -719,16 +884,13 @@
             const overlay = document.getElementById('loadingOverlay');
             const loadingMessage = document.getElementById('loadingMessage');
             const progressBar = document.getElementById('loadingProgress');
-            const oldLoading = document.getElementById('loading');
             
             if (show) {
                 overlay.style.display = 'flex';
                 loadingMessage.textContent = message;
                 progressBar.style.width = `${progress}%`;
-                oldLoading.style.display = 'none';
             } else {
                 overlay.style.display = 'none';
-                oldLoading.style.display = 'none';
             }
         }
         
@@ -746,7 +908,7 @@
             currentMode = mode;
             
             // Update button states
-            document.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.control-group button').forEach(btn => btn.classList.remove('active'));
             if (mode === 'fees') document.getElementById('btnFees').classList.add('active');
             else if (mode === 'funding') document.getElementById('btnFunding').classList.add('active');
             else if (mode === 'combined') document.getElementById('btnCombined').classList.add('active');
@@ -777,13 +939,11 @@
             document.getElementById('error').style.display = 'none';
             
             // Always fetch 90 days
-            showLoading(true, 'Processing data...', 30);
-            
             fetch(`/api/data?days=90`)
                 .then(response => {
                     if (response.status === 401) {
                         hasCredentials = false;
-                        document.getElementById('dashboardContent').classList.add('hidden');
+                        showApiConfig();
                         showStatus('API credentials not found. Please configure your API keys.', 'error');
                         throw new Error('Unauthorized');
                     }
@@ -883,12 +1043,18 @@
         function updatePositions(positions) {
             const positionsSection = document.getElementById('positionsSection');
             const tbody = document.getElementById('positionsTableBody');
+            const noPositions = document.getElementById('noPositions');
             
             if (!positions || positions.length === 0) {
-                positionsSection.style.display = 'none';
+                positionsSection.classList.remove('hidden');
+                tbody.innerHTML = '';
+                noPositions.classList.remove('hidden');
+                document.getElementById('cappedDataNote').style.display = 'none';
                 return;
             }
             
+            positionsSection.classList.remove('hidden');
+            noPositions.classList.add('hidden');
             tbody.innerHTML = '';
             let isAnyDataCapped = false;
             
@@ -898,7 +1064,7 @@
                 if (position.error) {
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td colspan="8" class="negative" style="text-align: center;">Error: ${position.error}</td>
+                        <td colspan="4" class="negative" style="text-align: center;">Error: ${position.error}</td>
                     `;
                 } else {
                     // Format the opened date
@@ -916,23 +1082,11 @@
                         });
                     }
                     
-                    // Determine if P&L is positive or negative for styling
-                    const pnlClass = position.unrealizedPnl >= 0 ? 'positive' : 'negative';
-                    const pnlPrefix = position.unrealizedPnl >= 0 ? '+' : '';
-                    
-                    // Determine styling for net unrealized P&L
-                    const netPnlClass = position.netUnrealizedPnl >= 0 ? 'positive' : 'negative';
-                    const netPnlPrefix = position.netUnrealizedPnl >= 0 ? '+' : '';
-                    
                     row.innerHTML = `
                         <td>${position.symbol}</td>
                         <td>${formatNumber(position.size)}</td>
-                        <td>${position.avgPrice > 0 ? '$' + formatNumber(position.avgPrice) : 'N/A'}</td>
-                        <td>${position.currentPrice > 0 ? '$' + formatNumber(position.currentPrice) : 'N/A'}</td>
-                        <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFunding)}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
-                        <td class="${netPnlClass}" style="font-weight: 600;">${netPnlPrefix}$${formatNumber(Math.abs(position.netUnrealizedPnl))}</td>
                         <td>${openedDateStr}</td>
                     `;
                 }
@@ -944,8 +1098,7 @@
                 }
             });
             
-            // Show the positions section and the "capped data" note if needed
-            positionsSection.style.display = 'block';
+            // Show the "capped data" note if needed
             document.getElementById('cappedDataNote').style.display = isAnyDataCapped ? 'block' : 'none';
         }
         
@@ -1003,52 +1156,46 @@
                     {
                         label: 'Cumulative Fees',
                         data: cumulativeFees,
-                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
                         borderColor: 'rgba(244, 67, 54, 1)',
+                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
                         borderWidth: 2,
-                        fill: false,
+                        fill: true,
                         tension: 0.1
                     },
                     {
                         label: 'Cumulative Funding',
                         data: cumulativeFunding,
-                        backgroundColor: 'rgba(251, 133, 0, 0.1)',
                         borderColor: 'rgba(251, 133, 0, 1)',
+                        backgroundColor: 'rgba(251, 133, 0, 0.1)',
                         borderWidth: 2,
-                        fill: false,
+                        fill: true,
                         tension: 0.1
                     },
                     {
-                        label: 'Cumulative Combined',
+                        label: 'Cumulative Total',
                         data: cumulativeCombined,
-                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
                         borderColor: 'rgba(255, 152, 0, 1)',
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.1,
-                        pointStyle: 'circle',
-                        pointRadius: 4,
-                        pointHoverRadius: 6
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
                     }
                 ];
-            } else {
-                // Combined mode - stacked bars
+            } else { // combined (stacked)
                 datasets = [
                     {
                         label: 'Fees',
                         data: data.fees,
                         backgroundColor: 'rgba(244, 67, 54, 0.8)',
                         borderColor: 'rgba(244, 67, 54, 1)',
-                        borderWidth: 1,
-                        stack: 'main'
+                        borderWidth: 1
                     },
                     {
                         label: 'Funding',
                         data: data.funding,
                         backgroundColor: 'rgba(251, 133, 0, 0.8)',
                         borderColor: 'rgba(251, 133, 0, 1)',
-                        borderWidth: 1,
-                        stack: 'main'
+                        borderWidth: 1
                     }
                 ];
             }
@@ -1062,126 +1209,33 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            stacked: currentMode === 'combined',
-                            grid: {
-                                display: currentMode === 'cumulative'
-                            },
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        },
-                        y: {
-                            stacked: currentMode === 'combined',
-                            beginAtZero: currentMode !== 'cumulative',
-                            grid: {
-                                display: true
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value.toFixed(2);
-                                }
-                            }
-                        }
-                    },
                     plugins: {
+                        title: {
+                            display: false
+                        },
                         legend: {
-                            display: currentMode === 'combined' || currentMode === 'cumulative',
-                            position: 'top'
+                            display: false
                         },
                         tooltip: {
                             enabled: false,
                             external: function(context) {
-                                const tooltipEl = document.getElementById('tooltip');
-                                
-                                if (context.tooltip.opacity === 0) {
-                                    tooltipEl.style.display = 'none';
-                                    return;
+                                customTooltip(context);
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            stacked: currentMode === 'combined',
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
                                 }
-                                
-                                const dataIndex = context.tooltip.dataPoints[0].dataIndex;
-                                const date = data.labels[dataIndex];
-                                const fees = data.fees[dataIndex];
-                                const funding = data.funding[dataIndex];
-                                const total = fees + funding;
-                                const dayTrades = tradesData[date] || [];
-                                
-                                let html = `<div class="date">${date}</div>`;
-                                
-                                // Fees section with trades
-                                html += '<div class="fees-section">';
-                                html += `<div class="label">Trading Fees: <span class="fees-value">$${fees.toFixed(2)}</span></div>`;
-                                
-                                if (dayTrades.length > 0) {
-                                    html += '<div class="trades-list">';
-                                    
-                                    // Group trades by asset
-                                    const tradesByAsset = {};
-                                    dayTrades.forEach(trade => {
-                                        if (!tradesByAsset[trade.asset]) {
-                                            tradesByAsset[trade.asset] = [];
-                                        }
-                                        tradesByAsset[trade.asset].push(trade);
-                                    });
-                                    
-                                    // Display trades grouped by asset
-                                    Object.entries(tradesByAsset).forEach(([asset, trades]) => {
-                                        html += `<div class="asset-group">`;
-                                        html += `<div class="asset-name">${asset}</div>`;
-                                        
-                                        trades.forEach(trade => {
-                                            const countText = trade.count > 1 ? ` (${trade.count} trades)` : '';
-                                            html += `<div class="trade-item">`;
-                                            html += `${trade.quantity.toFixed(4)} @ $${trade.price.toFixed(2)} - Fee: $${trade.fee.toFixed(2)}${countText}`;
-                                            html += `</div>`;
-                                        });
-                                        
-                                        // Subtotal for this asset
-                                        const assetFees = trades.reduce((sum, t) => sum + t.fee, 0);
-                                        html += `<div class="subtotal">Subtotal: $${assetFees.toFixed(2)}</div>`;
-                                        html += `</div>`;
-                                    });
-                                    
-                                    html += '</div>';
-                                }
-                                html += '</div>';
-                                
-                                // Funding section
-                                html += '<div class="funding-section">';
-                                html += `<div class="label">Funding Costs: <span class="funding-value">$${funding.toFixed(2)}</span></div>`;
-                                html += '</div>';
-                                
-                                // Total section
-                                html += '<div class="total-section">';
-                                html += `<div class="label">Total Cost: <span class="total-value">$${total.toFixed(2)}</span></div>`;
-                                html += '</div>';
-                                
-                                tooltipEl.innerHTML = html;
-                                tooltipEl.style.display = 'block';
-                                
-                                // Position tooltip at top-left of cursor
-                                const position = context.chart.canvas.getBoundingClientRect();
-                                const tooltipRect = tooltipEl.getBoundingClientRect();
-                                
-                                // Calculate position - offset to the left and up from cursor
-                                const offsetX = 15; // Pixels to the left of cursor
-                                const offsetY = 15; // Pixels above cursor
-                                
-                                let tooltipX = position.left + window.pageXOffset + context.tooltip.caretX - tooltipRect.width - offsetX;
-                                let tooltipY = position.top + window.pageYOffset + context.tooltip.caretY - tooltipRect.height - offsetY;
-                                
-                                // Ensure tooltip doesn't go off-screen
-                                if (tooltipX < window.pageXOffset) {
-                                    tooltipX = window.pageXOffset + 10;
-                                }
-                                if (tooltipY < window.pageYOffset) {
-                                    tooltipY = window.pageYOffset + 10;
-                                }
-                                
-                                tooltipEl.style.left = tooltipX + 'px';
-                                tooltipEl.style.top = tooltipY + 'px';
                             }
                         }
                     }
@@ -1189,18 +1243,79 @@
             });
         }
         
-        // Save credentials to localStorage when entered
-        document.getElementById('apiKey').addEventListener('change', (e) => {
-            if (!e.target.hasAttribute('readonly')) {
-                localStorage.setItem('krakenApiKey', e.target.value);
+        function customTooltip(context) {
+            const tooltipEl = document.getElementById('tooltip');
+            
+            if (context.tooltip.opacity === 0) {
+                tooltipEl.style.display = 'none';
+                return;
             }
-        });
-        
-        document.getElementById('apiSecret').addEventListener('change', (e) => {
-            if (!e.target.hasAttribute('readonly')) {
-                localStorage.setItem('krakenApiSecret', e.target.value);
+            
+            const dataIndex = context.tooltip.dataPoints[0].dataIndex;
+            const date = currentData.labels[dataIndex];
+            const fees = currentData.fees[dataIndex];
+            const funding = currentData.funding[dataIndex];
+            const trades = tradesData[date] || [];
+            
+            let tooltipHtml = `<div class="date">${date}</div>`;
+            
+            // Add fees section with trade details
+            if (fees > 0) {
+                tooltipHtml += `<div class="fees-section">`;
+                tooltipHtml += `<div class="label">Trading Fees: <span class="value fees-value">$${formatNumber(fees)}</span></div>`;
+                
+                if (trades.length > 0) {
+                    // Group trades by asset
+                    const tradesByAsset = {};
+                    trades.forEach(trade => {
+                        if (!tradesByAsset[trade.asset]) {
+                            tradesByAsset[trade.asset] = [];
+                        }
+                        tradesByAsset[trade.asset].push(trade);
+                    });
+                    
+                    tooltipHtml += '<div class="trades-list">';
+                    for (const [asset, assetTrades] of Object.entries(tradesByAsset)) {
+                        tooltipHtml += `<div class="asset-group">`;
+                        tooltipHtml += `<div class="asset-name">${asset}:</div>`;
+                        assetTrades.forEach(trade => {
+                            tooltipHtml += `<div class="trade-item">${trade.count}x @ $${formatNumber(trade.price)} (${formatNumber(trade.quantity)} qty) = $${formatNumber(trade.fee)}</div>`;
+                        });
+                        const assetTotal = assetTrades.reduce((sum, t) => sum + t.fee, 0);
+                        if (assetTrades.length > 1) {
+                            tooltipHtml += `<div class="subtotal">Subtotal: $${formatNumber(assetTotal)}</div>`;
+                        }
+                        tooltipHtml += '</div>';
+                    }
+                    tooltipHtml += '</div>';
+                }
+                tooltipHtml += '</div>';
             }
-        });
-    </script>
+            
+            // Add funding section
+            if (funding > 0) {
+                tooltipHtml += `<div class="funding-section">`;
+                tooltipHtml += `<div class="label">Funding Cost: <span class="value funding-value">$${formatNumber(funding)}</span></div>`;
+                tooltipHtml += '</div>';
+            }
+            
+            // Add total if both exist
+            if (fees > 0 && funding > 0) {
+                tooltipHtml += `<div class="total-section">`;
+                tooltipHtml += `<div class="label">Total Cost: <span class="value total-value">$${formatNumber(fees + funding)}</span></div>`;
+                tooltipHtml += '</div>';
+            }
+            
+            tooltipEl.innerHTML = tooltipHtml;
+            tooltipEl.style.display = 'block';
+            
+            const position = context.chart.canvas.getBoundingClientRect();
+            const tooltipX = position.left + window.pageXOffset + context.tooltip.caretX;
+            const tooltipY = position.top + window.pageYOffset + context.tooltip.caretY;
+            
+            tooltipEl.style.left = tooltipX + 'px';
+            tooltipEl.style.top = tooltipY + 'px';
+        }
+        </script>
 </body>
 </html> 

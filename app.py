@@ -3,6 +3,8 @@ Kraken Futures Fees and Funding Dashboard
 A Flask web application to visualize trading fees and funding costs.
 """
 from flask import Flask, render_template, jsonify, request as flask_request, make_response
+from flask_compress import Compress
+from flask_caching import Cache
 import logging
 import os
 import json
@@ -40,6 +42,18 @@ MAX_WORKERS = 4  # Increased for better parallel processing performance
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 app = Flask(__name__)
+
+# Enable response compression for better performance
+Compress(app)
+
+# Configure caching
+cache_config = {
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': CACHE_DIR,
+    'CACHE_DEFAULT_TIMEOUT': CACHE_DURATION,
+    'CACHE_THRESHOLD': 1000  # Maximum number of items the cache will store
+}
+cache = Cache(app, config=cache_config)
 
 # Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
@@ -151,6 +165,7 @@ def fetch_data_parallel(api_key: str, api_secret: str, since_ts: int, before_ts:
     return executions, logs, errors
 
 
+@cache.memoize(timeout=CACHE_DURATION)
 def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
     """
     Fetch and process data for the chart with caching and parallel fetching.
@@ -163,13 +178,8 @@ def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
     Returns:
         Dict with labels, fees, funding, and trades data
     """
-    # Check cache first
+    # Note: Flask-Caching will handle caching automatically
     since_ts, before_ts = get_period_boundaries(days_back)
-    cache_key = get_cache_key(api_key, f"chart_data_{days_back}", since_ts, before_ts)
-    
-    cached_data = get_cached_data(cache_key)
-    if cached_data:
-        return cached_data
     
     # Fetch data in parallel
     executions, logs, errors = fetch_data_parallel(api_key, api_secret, since_ts, before_ts)
@@ -319,7 +329,7 @@ def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
     }
     
     # Save to cache
-    save_to_cache(cache_key, result)
+    save_to_cache(get_cache_key(api_key, f"chart_data_{days_back}", since_ts, before_ts), result)
     
     return result
 
@@ -626,17 +636,56 @@ def validate_credentials():
         return jsonify({'valid': False, 'error': 'Validation failed'}), 500
 
 
+@app.before_request
+def before_request():
+    """Log request start time for performance monitoring."""
+    flask_request.start_time = time.time()
+
+
+@app.after_request
+def after_request(response):
+    """Log slow requests for performance monitoring."""
+    if hasattr(flask_request, 'start_time'):
+        diff = time.time() - flask_request.start_time
+        if diff > 0.5:  # Log requests taking more than 500ms
+            logger.warning(f"Slow request: {flask_request.method} {flask_request.path} took {diff:.2f}s")
+    
+    # Add cache headers for static assets
+    if flask_request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000'  # 1 year
+    
+    return response
+
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""
-    return jsonify({'error': 'Not found'}), 404
+    if flask_request.path.startswith('/api/'):
+        return jsonify({'error': 'Endpoint not found'}), 404
+    return render_template('index.html'), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors."""
-    logger.error(f"Internal error: {str(error)}")
+    logger.error(f"Internal error: {error}")
     return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle unexpected exceptions."""
+    logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    
+    # Return JSON for API endpoints
+    if flask_request.path.startswith('/api/'):
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'message': str(e) if app.debug else 'Please try again later'
+        }), 500
+    
+    # Return HTML for regular pages
+    return render_template('index.html'), 500
 
 
 # Start cache cleanup thread when app starts

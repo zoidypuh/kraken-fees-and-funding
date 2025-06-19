@@ -5,6 +5,8 @@ Contains only the functions needed for the web application.
 from datetime import datetime, timedelta, timezone
 import pytz
 from typing import List, Dict, Tuple
+from functools import lru_cache
+import math
 
 
 def get_utc() -> pytz.timezone:
@@ -117,7 +119,7 @@ def aggregate_logs_by_day(logs: List[Dict], timezone_obj: pytz.timezone = None) 
         # Parse entry timestamp
         date_str = entry.get("date", "")
         try:
-            entry_time = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+            entry_time = parse_iso_date(date_str)
             # Convert to specified timezone (UTC by default)
             entry_time_local = entry_time.astimezone(timezone_obj)
             # Get the date
@@ -213,4 +215,16 @@ def calculate_unrealized_pnl(position: Dict, current_price: float) -> float:
         # P&L = (average price - current price) * size
         pnl = (avg_price - current_price) * abs(size)
     
-    return round(pnl, 2) 
+    return round(pnl, 2)
+
+
+# LRU cache for frequent date parsing operations
+@lru_cache(maxsize=2000)
+def parse_iso_date(date_str: str) -> datetime:
+    """
+    Parse ISO date string with caching for performance.
+    """
+    try:
+        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+    except:
+        return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc) 
