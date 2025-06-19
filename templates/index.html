@@ -409,10 +409,12 @@
         
         .positions-table .positive {
             color: #4CAF50;
+            font-weight: 600;
         }
         
         .positions-table .negative {
             color: #f44336;
+            font-weight: 600;
         }
         
         .positions-table .cost-cell {
@@ -464,13 +466,14 @@
                 
                 <div class="control-group">
                     <label>Time Period:</label>
-                    <select id="daySelector" onchange="updateData()">
+                    <select id="daySelector" onchange="filterAndDisplayData(parseInt(this.value))">
                         <option value="7">Last 7 days</option>
                         <option value="14">Last 14 days</option>
                         <option value="30" selected>Last 30 days</option>
                         <option value="60">Last 60 days</option>
                         <option value="90">Last 90 days</option>
                     </select>
+                    <button class="secondary" onclick="updateData(true)" style="margin-left: 10px;">🔄 Refresh</button>
                 </div>
             </div>
             
@@ -508,6 +511,9 @@
                             <tr>
                                 <th>Symbol</th>
                                 <th>Quantity</th>
+                                <th>Avg Price</th>
+                                <th>Current Price</th>
+                                <th>Unrealized P&L</th>
                                 <th>Accumulated Funding</th>
                                 <th>Accumulated Fees</th>
                                 <th>Opened Date</th>
@@ -531,10 +537,11 @@
         let chart = null;
         let currentMode = 'combined';
         let currentData = null;
+        let allData = null;  // Store all 90 days of data
+        let tradesData = {};
         let hasCredentials = {{ 'true' if has_credentials else 'false' }};
         let isEditing = false;
-        let tradesData = {};
-        let loadStartTime = null;
+        let loadStartTime = 0;
         
         // Initialize
         window.onload = function() {
@@ -750,20 +757,28 @@
             }
         }
 
-        function updateData() {
+        function updateData(forceRefresh = false) {
             if (!hasCredentials) {
                 return;
             }
             
-            const days = document.getElementById('daySelector').value;
+            const days = parseInt(document.getElementById('daySelector').value);
+            
+            // If we already have all data loaded and not forcing refresh, just filter it
+            if (allData && !forceRefresh) {
+                filterAndDisplayData(days);
+                return;
+            }
+            
+            // Otherwise, fetch all 90 days of data
             loadStartTime = Date.now();
-            showLoading(true, 'Fetching data from Kraken...', 10);
+            showLoading(true, 'Fetching 90 days of data from Kraken...', 10);
             document.getElementById('error').style.display = 'none';
             
-            // Use the cookie-based endpoint
+            // Always fetch 90 days
             showLoading(true, 'Processing data...', 30);
             
-            fetch(`/api/data?days=${days}`)
+            fetch(`/api/data?days=90`)
                 .then(response => {
                     if (response.status === 401) {
                         hasCredentials = false;
@@ -788,13 +803,13 @@
                     
                     showLoading(true, 'Rendering chart...', 90);
                     
-                    currentData = data;
-                    tradesData = data.trades || {};
+                    // Store all data
+                    allData = data;
                     
                     showLoading(false);
-                    updateChart(data);
-                    updateTotals(data);
-                    updatePositions(data.positions || []);
+                    
+                    // Now filter and display based on selected days
+                    filterAndDisplayData(days);
                 })
                 .catch(error => {
                     showLoading(false);
@@ -803,6 +818,38 @@
                         document.getElementById('error').textContent = 'Error loading data: ' + error.message;
                     }
                 });
+        }
+        
+        function filterAndDisplayData(days) {
+            if (!allData) return;
+            
+            // Calculate how many data points to show
+            const totalDataPoints = allData.labels.length;
+            const pointsToShow = Math.min(days, totalDataPoints);
+            const startIndex = totalDataPoints - pointsToShow;
+            
+            // Filter the data to show only the requested days
+            const filteredData = {
+                labels: allData.labels.slice(startIndex),
+                fees: allData.fees.slice(startIndex),
+                funding: allData.funding.slice(startIndex),
+                trades: {},
+                positions: allData.positions
+            };
+            
+            // Filter trades data
+            filteredData.labels.forEach(label => {
+                if (allData.trades[label]) {
+                    filteredData.trades[label] = allData.trades[label];
+                }
+            });
+            
+            currentData = filteredData;
+            tradesData = filteredData.trades;
+            
+            updateChart(filteredData);
+            updateTotals(filteredData);
+            updatePositions(filteredData.positions || []);
         }
         
         function updateTotals(data) {
@@ -850,7 +897,7 @@
                 if (position.error) {
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td colspan="4" class="negative" style="text-align: center;">Error: ${position.error}</td>
+                        <td colspan="7" class="negative" style="text-align: center;">Error: ${position.error}</td>
                     `;
                 } else {
                     // Format the opened date
@@ -868,9 +915,16 @@
                         });
                     }
                     
+                    // Determine if P&L is positive or negative for styling
+                    const pnlClass = position.unrealizedPnl >= 0 ? 'positive' : 'negative';
+                    const pnlPrefix = position.unrealizedPnl >= 0 ? '+' : '';
+                    
                     row.innerHTML = `
                         <td>${position.symbol}</td>
                         <td>${formatNumber(position.size)}</td>
+                        <td>${position.avgPrice > 0 ? '$' + formatNumber(position.avgPrice) : 'N/A'}</td>
+                        <td>${position.currentPrice > 0 ? '$' + formatNumber(position.currentPrice) : 'N/A'}</td>
+                        <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFunding)}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
                         <td>${openedDateStr}</td>

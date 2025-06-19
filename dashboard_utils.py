@@ -177,4 +177,40 @@ def aggregate_logs_by_day(logs: List[Dict], timezone_obj: pytz.timezone = None) 
         # Remove temporary dict
         del daily_data[day_key]['trades_list']
     
-    return daily_data 
+    return daily_data
+
+
+def calculate_unrealized_pnl(position: Dict, current_price: float) -> float:
+    """
+    Calculate unrealized P&L for a position.
+    
+    Args:
+        position: Position dict with 'size', 'price' (average entry price), and 'side'
+        current_price: Current market price
+        
+    Returns:
+        Unrealized P&L in USD
+    """
+    if not current_price or current_price <= 0:
+        return 0.0
+    
+    size = float(position.get('size', 0))
+    if size == 0:
+        return 0.0
+    
+    # For Kraken futures, size is already directional:
+    # Positive size = long position, negative size = short position
+    avg_price = float(position.get('price', 0))
+    
+    if avg_price <= 0:
+        return 0.0
+    
+    # Calculate P&L based on position direction
+    if size > 0:  # Long position
+        # P&L = (current price - average price) * size
+        pnl = (current_price - avg_price) * abs(size)
+    else:  # Short position
+        # P&L = (average price - current price) * size
+        pnl = (avg_price - current_price) * abs(size)
+    
+    return round(pnl, 2) 
