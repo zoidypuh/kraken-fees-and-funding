@@ -277,6 +277,7 @@ class TestAppEndpoints:
                     'unrealizedPnl': 50000.0,
                     'accumulatedFunding': 150.0,
                     'accumulatedFees': 50.0,
+                    'netUnrealizedPnl': 49800.0,  # 50000 - 150 - 50
                     'dataIsCapped': False,
                     'trueOpenedDateUTC': '2025-01-01T00:00:00Z'
                 },
@@ -288,6 +289,7 @@ class TestAppEndpoints:
                     'unrealizedPnl': 5000.0,
                     'accumulatedFunding': 200.0,
                     'accumulatedFees': 75.0,
+                    'netUnrealizedPnl': 4725.0,  # 5000 - 200 - 75
                     'dataIsCapped': False,
                     'trueOpenedDateUTC': '2025-01-01T00:00:00Z'
                 }
@@ -315,6 +317,7 @@ class TestAppEndpoints:
             assert btc_pos['avgPrice'] == 95000
             assert btc_pos['currentPrice'] == 100000  # Converted from string
             assert btc_pos['unrealizedPnl'] == 50000.0  # (100000 - 95000) * 10
+            assert btc_pos['netUnrealizedPnl'] == 49800.0  # 50000 - 150 - 50
             
             # Check second position (short ETH)
             eth_pos = positions[1]
@@ -323,6 +326,7 @@ class TestAppEndpoints:
             assert eth_pos['avgPrice'] == 3600
             assert eth_pos['currentPrice'] == 3500
             assert eth_pos['unrealizedPnl'] == 5000.0  # (3600 - 3500) * 50
+            assert eth_pos['netUnrealizedPnl'] == 4725.0  # 5000 - 200 - 75
 
 
 class TestCaching:

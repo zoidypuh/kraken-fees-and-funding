@@ -516,6 +516,7 @@
                                 <th>Unrealized P&L</th>
                                 <th>Accumulated Funding</th>
                                 <th>Accumulated Fees</th>
+                                <th>Net Unrealized P&L</th>
                                 <th>Opened Date</th>
                             </tr>
                         </thead>
@@ -897,7 +898,7 @@
                 if (position.error) {
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td colspan="7" class="negative" style="text-align: center;">Error: ${position.error}</td>
+                        <td colspan="8" class="negative" style="text-align: center;">Error: ${position.error}</td>
                     `;
                 } else {
                     // Format the opened date
@@ -919,6 +920,10 @@
                     const pnlClass = position.unrealizedPnl >= 0 ? 'positive' : 'negative';
                     const pnlPrefix = position.unrealizedPnl >= 0 ? '+' : '';
                     
+                    // Determine styling for net unrealized P&L
+                    const netPnlClass = position.netUnrealizedPnl >= 0 ? 'positive' : 'negative';
+                    const netPnlPrefix = position.netUnrealizedPnl >= 0 ? '+' : '';
+                    
                     row.innerHTML = `
                         <td>${position.symbol}</td>
                         <td>${formatNumber(position.size)}</td>
@@ -927,6 +932,7 @@
                         <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFunding)}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
+                        <td class="${netPnlClass}" style="font-weight: 600;">${netPnlPrefix}$${formatNumber(Math.abs(position.netUnrealizedPnl))}</td>
                         <td>${openedDateStr}</td>
                     `;
                 }

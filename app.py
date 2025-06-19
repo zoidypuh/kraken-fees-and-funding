@@ -695,14 +695,20 @@ def get_open_positions_data(api_key: str, api_secret: str):
                 'price': avg_price
             }, current_price)
             
+            # Calculate net unrealized P&L (unrealized P&L - accumulated fees - accumulated funding)
+            accumulated_funding = result.get('accumulated_funding', 0.0)
+            accumulated_fees = result.get('accumulated_fees', 0.0)
+            net_unrealized_pnl = unrealized_pnl - accumulated_funding - accumulated_fees
+            
             enriched_position = {
                 'symbol': symbol,
                 'size': result.get('size', 0),
                 'avgPrice': avg_price,
                 'currentPrice': current_price,
                 'unrealizedPnl': unrealized_pnl,
-                'accumulatedFunding': result.get('accumulated_funding', 0.0),
-                'accumulatedFees': result.get('accumulated_fees', 0.0),
+                'accumulatedFunding': accumulated_funding,
+                'accumulatedFees': accumulated_fees,
+                'netUnrealizedPnl': net_unrealized_pnl,
                 'dataIsCapped': result.get('data_is_capped', False),
                 'trueOpenedDateUTC': result.get('true_opened_date_utc'),
                 'error': result.get('error')
