@@ -1155,10 +1155,24 @@
                                 tooltipEl.innerHTML = html;
                                 tooltipEl.style.display = 'block';
                                 
-                                // Position tooltip
+                                // Position tooltip at top-left of cursor
                                 const position = context.chart.canvas.getBoundingClientRect();
-                                const tooltipX = position.left + window.pageXOffset + context.tooltip.caretX;
-                                const tooltipY = position.top + window.pageYOffset + context.tooltip.caretY;
+                                const tooltipRect = tooltipEl.getBoundingClientRect();
+                                
+                                // Calculate position - offset to the left and up from cursor
+                                const offsetX = 15; // Pixels to the left of cursor
+                                const offsetY = 15; // Pixels above cursor
+                                
+                                let tooltipX = position.left + window.pageXOffset + context.tooltip.caretX - tooltipRect.width - offsetX;
+                                let tooltipY = position.top + window.pageYOffset + context.tooltip.caretY - tooltipRect.height - offsetY;
+                                
+                                // Ensure tooltip doesn't go off-screen
+                                if (tooltipX < window.pageXOffset) {
+                                    tooltipX = window.pageXOffset + 10;
+                                }
+                                if (tooltipY < window.pageYOffset) {
+                                    tooltipY = window.pageYOffset + 10;
+                                }
                                 
                                 tooltipEl.style.left = tooltipX + 'px';
                                 tooltipEl.style.top = tooltipY + 'px';
