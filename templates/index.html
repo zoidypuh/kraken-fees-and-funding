@@ -801,7 +801,30 @@
                 indicator.style.display = 'inline';
             }
             
-            fetch(`/api/data?days=90`)
+            // Check if Celery is available and use async if possible
+            fetch('/api/celery-status')
+                .then(response => response.json())
+                .then(celeryStatus => {
+                    if (celeryStatus.status === 'available') {
+                        // Use async Celery processing
+                        return refreshPositionsAsync();
+                    } else {
+                        // Fallback to sync processing
+                        return refreshPositionsSync();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking Celery status:', error);
+                    // Fallback to sync on error
+                    return refreshPositionsSync();
+                });
+        }
+        
+        function refreshPositionsSync() {
+            // Original synchronous refresh
+            const indicator = document.getElementById('positionsRefreshIndicator');
+            
+            return fetch(`/api/data?days=90`)
                 .then(response => {
                     if (response.status === 401) {
                         stopPositionsAutoRefresh();
@@ -823,6 +846,88 @@
                         indicator.style.display = 'none';
                     }
                 });
+        }
+        
+        function refreshPositionsAsync() {
+            // Async refresh using Celery
+            const indicator = document.getElementById('positionsRefreshIndicator');
+            
+            return fetch('/api/positions-async', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.task_id) {
+                    // Update indicator to show async processing
+                    if (indicator) {
+                        indicator.textContent = '(processing in background...)';
+                    }
+                    // Poll for task completion
+                    pollTaskStatus(data.task_id, indicator);
+                } else if (data.mode === 'sync') {
+                    // Celery not available, using sync mode
+                    if (data.positions) {
+                        updatePositions(data.positions);
+                    }
+                    if (indicator) {
+                        indicator.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error starting async refresh:', error);
+                // Fallback to sync
+                return refreshPositionsSync();
+            });
+        }
+        
+        function pollTaskStatus(taskId, indicator) {
+            const pollInterval = setInterval(() => {
+                fetch(`/api/task-status/${taskId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.state === 'SUCCESS') {
+                            clearInterval(pollInterval);
+                            if (data.result && data.result.positions) {
+                                updatePositions(data.result.positions);
+                            }
+                            if (indicator) {
+                                indicator.style.display = 'none';
+                            }
+                        } else if (data.state === 'FAILURE') {
+                            clearInterval(pollInterval);
+                            console.error('Task failed:', data.error);
+                            if (indicator) {
+                                indicator.textContent = '(failed)';
+                                setTimeout(() => {
+                                    indicator.style.display = 'none';
+                                }, 3000);
+                            }
+                        } else if (data.state === 'STARTED') {
+                            if (indicator) {
+                                indicator.textContent = '(calculating...)';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        clearInterval(pollInterval);
+                        console.error('Error polling task status:', error);
+                        if (indicator) {
+                            indicator.style.display = 'none';
+                        }
+                    });
+            }, 1000); // Poll every second
+            
+            // Stop polling after 2 minutes
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                if (indicator) {
+                    indicator.style.display = 'none';
+                }
+            }, 120000);
         }
         
         function showApiConfig() {

@@ -893,6 +893,123 @@ async def get_data_async(api_key, api_secret):
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/api/positions-async', methods=['POST'])
+@require_api_credentials
+@limiter.limit("10 per minute")
+def get_positions_async(api_key, api_secret):
+    """
+    Get positions with async calculation using Celery.
+    """
+    try:
+        from tasks import refresh_all_positions_async
+        from celery.result import AsyncResult
+        
+        # Check if Celery is available
+        try:
+            # Test Celery connection
+            from celery_app import celery_app
+            celery_app.control.inspect().stats()
+        except Exception as e:
+            logger.warning(f"Celery not available: {e}")
+            # Fallback to sync version
+            positions = get_open_positions_data(api_key, api_secret)
+            return jsonify({
+                'positions': positions,
+                'status': 'success',
+                'mode': 'sync'
+            })
+        
+        # Start async task
+        task = refresh_all_positions_async.delay(api_key, api_secret)
+        
+        return jsonify({
+            'task_id': task.id,
+            'status': 'processing',
+            'message': 'Calculating positions in background'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting async positions: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/task-status/<task_id>')
+@limiter.limit("60 per minute")
+def get_task_status(task_id):
+    """Check the status of a Celery task."""
+    try:
+        from celery.result import AsyncResult
+        from celery_app import celery_app
+        
+        task = AsyncResult(task_id, app=celery_app)
+        
+        if task.state == 'PENDING':
+            response = {
+                'state': task.state,
+                'status': 'Task is waiting to be processed'
+            }
+        elif task.state == 'STARTED':
+            response = {
+                'state': task.state,
+                'status': 'Task has started processing'
+            }
+        elif task.state == 'SUCCESS':
+            response = {
+                'state': task.state,
+                'result': task.result,
+                'status': 'Task completed successfully'
+            }
+        elif task.state == 'FAILURE':
+            response = {
+                'state': task.state,
+                'error': str(task.info),
+                'status': 'Task failed'
+            }
+        else:
+            # RETRY, REVOKED, etc.
+            response = {
+                'state': task.state,
+                'status': f'Task is in {task.state} state'
+            }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Error checking task status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/celery-status')
+def celery_status():
+    """Check if Celery workers are available."""
+    try:
+        from celery_app import celery_app
+        
+        # Get worker stats
+        stats = celery_app.control.inspect().stats()
+        active = celery_app.control.inspect().active()
+        
+        if stats:
+            worker_count = len(stats)
+            return jsonify({
+                'status': 'available',
+                'workers': worker_count,
+                'stats': stats,
+                'active_tasks': active
+            })
+        else:
+            return jsonify({
+                'status': 'unavailable',
+                'message': 'No Celery workers detected'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
+
+
 if __name__ == '__main__':
     # Start cache cleanup
     start_cache_cleanup()
