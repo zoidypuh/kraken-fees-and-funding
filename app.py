@@ -27,7 +27,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Cache configuration
-CACHE_DIR = os.path.join(os.path.dirname(__file__), '.cache')
+# Use /tmp for cache on Google App Engine (read-only filesystem)
+if os.environ.get('GAE_ENV', '').startswith('standard'):
+    CACHE_DIR = '/tmp/kraken_cache'
+else:
+    CACHE_DIR = os.path.join(os.path.dirname(__file__), '.cache')
+
 CACHE_DURATION = 300  # 5 minutes cache duration
 MAX_WORKERS = 4  # Increased for better parallel processing performance
 
