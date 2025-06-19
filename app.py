@@ -5,6 +5,8 @@ A Flask web application to visualize trading fees and funding costs.
 from flask import Flask, render_template, jsonify, request as flask_request, make_response
 from flask_compress import Compress
 from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import logging
 import os
 import json
@@ -14,6 +16,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 from functools import wraps, lru_cache
+import asyncio
+import aiohttp
 
 # Local imports
 from kraken_client import (
@@ -46,14 +50,45 @@ app = Flask(__name__)
 # Enable response compression for better performance
 Compress(app)
 
-# Configure caching
-cache_config = {
-    'CACHE_TYPE': 'filesystem',
-    'CACHE_DIR': CACHE_DIR,
-    'CACHE_DEFAULT_TIMEOUT': CACHE_DURATION,
-    'CACHE_THRESHOLD': 1000  # Maximum number of items the cache will store
-}
+# Configure caching - use Redis if available, otherwise filesystem
+USE_REDIS = os.environ.get('USE_REDIS_CACHE', 'False').lower() == 'true'
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+if USE_REDIS:
+    try:
+        import redis
+        # Test Redis connection
+        redis_client = redis.from_url(REDIS_URL)
+        redis_client.ping()
+        cache_config = {
+            'CACHE_TYPE': 'redis',
+            'CACHE_REDIS_URL': REDIS_URL,
+            'CACHE_DEFAULT_TIMEOUT': CACHE_DURATION,
+            'CACHE_KEY_PREFIX': 'kraken_dashboard_'
+        }
+        logger.info("Using Redis for caching")
+    except Exception as e:
+        logger.warning(f"Redis connection failed: {e}. Falling back to filesystem cache.")
+        USE_REDIS = False
+
+if not USE_REDIS:
+    cache_config = {
+        'CACHE_TYPE': 'filesystem',
+        'CACHE_DIR': CACHE_DIR,
+        'CACHE_DEFAULT_TIMEOUT': CACHE_DURATION,
+        'CACHE_THRESHOLD': 1000
+    }
+    logger.info("Using filesystem for caching")
+
 cache = Cache(app, config=cache_config)
+
+# Configure rate limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
@@ -165,28 +200,10 @@ def fetch_data_parallel(api_key: str, api_secret: str, since_ts: int, before_ts:
     return executions, logs, errors
 
 
-@cache.memoize(timeout=CACHE_DURATION)
-def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
+def process_chart_data(executions: list, logs: list, days: int) -> dict:
     """
-    Fetch and process data for the chart with caching and parallel fetching.
-    
-    Args:
-        api_key: Kraken API key
-        api_secret: Kraken API secret
-        days_back: Number of days to look back
-        
-    Returns:
-        Dict with labels, fees, funding, and trades data
+    Process execution events and logs into chart data format.
     """
-    # Note: Flask-Caching will handle caching automatically
-    since_ts, before_ts = get_period_boundaries(days_back)
-    
-    # Fetch data in parallel
-    executions, logs, errors = fetch_data_parallel(api_key, api_secret, since_ts, before_ts)
-    
-    if errors and not executions and not logs:
-        raise KrakenAPIError("; ".join(errors))
-    
     # Process data
     daily_data = {}
     trades_by_day = {}
@@ -201,7 +218,7 @@ def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
         except:
             return None
     
-    # Process funding from account logs (optimized)
+    # Process funding from account logs
     daily_funding = {}
     for log in logs:
         if log.get('funding_rate') is not None and log.get('realized_funding') is not None:
@@ -321,15 +338,42 @@ def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
         else:
             trades_data[day] = []
     
-    result = {
+    return {
         'labels': labels,
         'fees': fees_data,
         'funding': funding_data,
         'trades': trades_data
     }
+
+
+@cache.memoize(timeout=CACHE_DURATION)
+def get_chart_data(api_key: str, api_secret: str, days_back: int = 30):
+    """
+    Fetch and process data for the chart with caching and parallel fetching.
+    
+    Args:
+        api_key: Kraken API key
+        api_secret: Kraken API secret
+        days_back: Number of days to look back
+        
+    Returns:
+        Dict with labels, fees, funding, and trades data
+    """
+    # Note: Flask-Caching will handle caching automatically
+    since_ts, before_ts = get_period_boundaries(days_back)
+    
+    # Fetch data in parallel
+    executions, logs, errors = fetch_data_parallel(api_key, api_secret, since_ts, before_ts)
+    
+    if errors and not executions and not logs:
+        raise KrakenAPIError("; ".join(errors))
+    
+    # Process data using the extracted function
+    result = process_chart_data(executions, logs, days_back)
     
     # Save to cache
-    save_to_cache(get_cache_key(api_key, f"chart_data_{days_back}", since_ts, before_ts), result)
+    cache_key = get_cache_key(api_key, f"chart_data_{days_back}", since_ts, before_ts)
+    save_to_cache(cache_key, result)
     
     return result
 
@@ -370,6 +414,7 @@ def index():
 
 @app.route('/api/data')
 @require_api_credentials
+@limiter.limit("30 per minute")
 def get_data(api_key, api_secret):
     """
     API endpoint to fetch chart data.
@@ -407,6 +452,7 @@ def get_data(api_key, api_secret):
 
 
 @app.route('/api/set-credentials', methods=['POST'])
+@limiter.limit("5 per minute")
 def set_credentials():
     """
     Save API credentials in secure cookies.
@@ -610,6 +656,7 @@ def chart_data_progressive():
 
 
 @app.route('/api/validate-credentials', methods=['POST'])
+@limiter.limit("5 per minute")
 def validate_credentials():
     """Validate API credentials by making a test request."""
     try:
@@ -772,6 +819,78 @@ def get_open_positions_data(api_key: str, api_secret: str):
         traceback.print_exc()
         # Return an error object that can be displayed on the frontend
         return [{'error': f'Top-level error in get_open_positions_data: {e}'}]
+
+
+@app.route('/api/data-async')
+@require_api_credentials
+@limiter.limit("30 per minute")
+async def get_data_async(api_key, api_secret):
+    """
+    Async API endpoint to fetch chart data for better performance.
+    """
+    try:
+        days = int(flask_request.args.get('days', 30))
+        
+        # Validate days parameter
+        if days < 1 or days > 365:
+            return jsonify({'error': 'Days parameter must be between 1 and 365'}), 400
+        
+        # Check if async processing is enabled
+        USE_ASYNC = os.environ.get('USE_ASYNC_API', 'True').lower() == 'true'
+        
+        if USE_ASYNC:
+            try:
+                from kraken_client_async import fetch_data_parallel_async
+                
+                # Get time boundaries
+                since_ts, before_ts = get_period_boundaries(days)
+                
+                # Check cache first
+                cache_key = get_cache_key(api_key, f"chart_data_{days}", since_ts, before_ts)
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    return jsonify(cached_data)
+                
+                # Fetch data asynchronously
+                executions, logs, errors = await fetch_data_parallel_async(api_key, api_secret, since_ts, before_ts)
+                
+                if errors and not executions and not logs:
+                    raise KrakenAPIError("; ".join(errors))
+                
+                # Process data (same as sync version)
+                data = process_chart_data(executions, logs, days)
+                
+                # Cache the result
+                cache.set(cache_key, data)
+                
+                # Also fetch open positions
+                positions = get_open_positions_data(api_key, api_secret)
+                data['positions'] = positions
+                
+                return jsonify(data)
+                
+            except ImportError:
+                logger.warning("Async client not available, falling back to sync")
+                USE_ASYNC = False
+        
+        # Fallback to sync version
+        data = get_chart_data(api_key, api_secret, days)
+        
+        # Also fetch open positions
+        positions = get_open_positions_data(api_key, api_secret)
+        data['positions'] = positions
+        
+        return jsonify(data)
+        
+    except KrakenAPIError as e:
+        logger.error(f"API error: {e}")
+        return jsonify({'error': f'Kraken API error: {str(e)}'}), 500
+    except ValueError as e:
+        logger.error(f"Invalid parameter: {e}")
+        return jsonify({'error': 'Invalid days parameter'}), 400
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 if __name__ == '__main__':

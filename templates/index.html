@@ -637,7 +637,8 @@
             <!-- Open Positions Section -->
             <div id="positionsSection" class="section hidden">
                 <div class="section-header">
-                    <h2 class="section-title">Open Positions</h2>
+                    <h2 class="section-title">Open Positions <span id="positionsRefreshIndicator" style="display: none; font-size: 14px; color: #666; font-weight: normal;">(updating...)</span></h2>
+                    <span style="font-size: 12px; color: #666;">Auto-refreshes every 5 seconds</span>
                 </div>
                 <div class="section-content">
                     <div style="overflow-x: auto;">
@@ -646,8 +647,12 @@
                                 <tr>
                                     <th>Symbol</th>
                                     <th>Quantity</th>
+                                    <th>Avg Price</th>
+                                    <th>Current Price</th>
+                                    <th>Unrealized P&L</th>
                                     <th>Accumulated Funding</th>
                                     <th>Accumulated Fees</th>
+                                    <th>Net Unrealized P&L</th>
                                     <th>Opened Date</th>
                                 </tr>
                             </thead>
@@ -756,15 +761,74 @@
         let hasCredentials = {{ 'true' if has_credentials else 'false' }};
         let isEditing = false;
         let loadStartTime = 0;
+        let positionsRefreshInterval = null;
         
         // Initialize
         window.onload = function() {
             if (hasCredentials) {
                 updateData();
+                startPositionsAutoRefresh();
             }
         };
         
+        // Auto-refresh positions every 5 seconds
+        function startPositionsAutoRefresh() {
+            // Clear any existing interval
+            if (positionsRefreshInterval) {
+                clearInterval(positionsRefreshInterval);
+            }
+            
+            // Set up new interval
+            positionsRefreshInterval = setInterval(function() {
+                if (hasCredentials && !isEditing) {
+                    refreshPositionsOnly();
+                }
+            }, 5000); // 5 seconds
+        }
+        
+        function stopPositionsAutoRefresh() {
+            if (positionsRefreshInterval) {
+                clearInterval(positionsRefreshInterval);
+                positionsRefreshInterval = null;
+            }
+        }
+        
+        // Refresh only positions data without refreshing the entire chart
+        function refreshPositionsOnly() {
+            // Show refresh indicator
+            const indicator = document.getElementById('positionsRefreshIndicator');
+            if (indicator) {
+                indicator.style.display = 'inline';
+            }
+            
+            fetch(`/api/data?days=90`)
+                .then(response => {
+                    if (response.status === 401) {
+                        stopPositionsAutoRefresh();
+                        return null;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.positions) {
+                        updatePositions(data.positions);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing positions:', error);
+                })
+                .finally(() => {
+                    // Hide refresh indicator
+                    if (indicator) {
+                        indicator.style.display = 'none';
+                    }
+                });
+        }
+        
         function showApiConfig() {
+            // Stop auto-refresh
+            stopPositionsAutoRefresh();
+            
             // Hide dashboard content
             document.getElementById('dashboardContent').classList.add('hidden');
             // Show API config section
@@ -853,6 +917,9 @@
                     
                     // Load data
                     updateData();
+                    
+                    // Start auto-refresh
+                    startPositionsAutoRefresh();
                 } else {
                     showStatus(data.error || 'Failed to save credentials', 'error');
                 }
@@ -1064,7 +1131,7 @@
                 if (position.error) {
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td colspan="4" class="negative" style="text-align: center;">Error: ${position.error}</td>
+                        <td colspan="8" class="negative" style="text-align: center;">Error: ${position.error}</td>
                     `;
                 } else {
                     // Format the opened date
@@ -1082,11 +1149,23 @@
                         });
                     }
                     
+                    // Determine if P&L is positive or negative for styling
+                    const pnlClass = position.unrealizedPnl >= 0 ? 'positive' : 'negative';
+                    const pnlPrefix = position.unrealizedPnl >= 0 ? '+' : '';
+                    
+                    // Determine styling for net unrealized P&L
+                    const netPnlClass = position.netUnrealizedPnl >= 0 ? 'positive' : 'negative';
+                    const netPnlPrefix = position.netUnrealizedPnl >= 0 ? '+' : '';
+                    
                     row.innerHTML = `
                         <td>${position.symbol}</td>
                         <td>${formatNumber(position.size)}</td>
+                        <td>${position.avgPrice > 0 ? '$' + formatNumber(position.avgPrice) : 'N/A'}</td>
+                        <td>${position.currentPrice > 0 ? '$' + formatNumber(position.currentPrice) : 'N/A'}</td>
+                        <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFunding)}</td>
                         <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
+                        <td class="${netPnlClass}" style="font-weight: 600;">${netPnlPrefix}$${formatNumber(Math.abs(position.netUnrealizedPnl))}</td>
                         <td>${openedDateStr}</td>
                     `;
                 }
@@ -1309,13 +1388,28 @@
             tooltipEl.innerHTML = tooltipHtml;
             tooltipEl.style.display = 'block';
             
+            // Position tooltip at upper-left of cursor
             const position = context.chart.canvas.getBoundingClientRect();
-            const tooltipX = position.left + window.pageXOffset + context.tooltip.caretX;
-            const tooltipY = position.top + window.pageYOffset + context.tooltip.caretY;
+            const tooltipRect = tooltipEl.getBoundingClientRect();
+            
+            // Calculate position - offset to the left and up from cursor
+            const offsetX = 15; // Pixels to the left of cursor
+            const offsetY = 15; // Pixels above cursor
+            
+            let tooltipX = position.left + window.pageXOffset + context.tooltip.caretX - tooltipRect.width - offsetX;
+            let tooltipY = position.top + window.pageYOffset + context.tooltip.caretY - tooltipRect.height - offsetY;
+            
+            // Ensure tooltip doesn't go off-screen
+            if (tooltipX < window.pageXOffset) {
+                tooltipX = window.pageXOffset + 10;
+            }
+            if (tooltipY < window.pageYOffset) {
+                tooltipY = window.pageYOffset + 10;
+            }
             
             tooltipEl.style.left = tooltipX + 'px';
             tooltipEl.style.top = tooltipY + 'px';
         }
-        </script>
+    </script>
 </body>
 </html> 
