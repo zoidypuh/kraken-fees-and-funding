@@ -43,8 +43,12 @@ def create_app(config_name=None):
     app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Cache configuration
-    app.config['CACHE_TYPE'] = 'filesystem'
-    app.config['CACHE_DIR'] = os.path.join(os.path.dirname(__file__), '.cache')
+    # Use /tmp for cache in production (Google App Engine)
+    if os.environ.get('GAE_ENV', '').startswith('standard'):
+        app.config['CACHE_TYPE'] = 'simple'  # In-memory cache for production
+    else:
+        app.config['CACHE_TYPE'] = 'filesystem'
+        app.config['CACHE_DIR'] = os.path.join(os.path.dirname(__file__), '.cache')
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes
     
     # Initialize extensions
