@@ -10,11 +10,11 @@ automatic_scaling:
 env_variables:
   PORT: "8080"
 
-entrypoint: gunicorn -b :$PORT main:app
+entrypoint: gunicorn -b :$PORT "app:create_app()"
 
 handlers:
 - url: /static
-  static_dir: static
+  static_dir: frontend/static
   secure: always
 
 - url: /.*

@@ -37,6 +37,36 @@
             align-items: center;
         }
         
+        .header-fee-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .fee-info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .fee-info-label {
+            color: #999;
+            font-weight: 500;
+        }
+        
+        .fee-info-value {
+            color: #333;
+            font-weight: 600;
+            font-family: monospace;
+        }
+        
+        .fee-info-divider {
+            color: #ddd;
+            font-weight: 300;
+        }
+        
         .header-title {
             font-size: 24px;
             font-weight: 600;
@@ -255,6 +285,60 @@
             background-color: #5a6268;
         }
         
+        /* Refresh button styles */
+        button.refresh-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease, background 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button.refresh-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.refresh-button:hover .refresh-icon {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        button.refresh-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.refresh-button.loading {
+            background: #6c757d;
+            pointer-events: none;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        
+        button.refresh-button .refresh-icon {
+            display: inline-block;
+            transition: transform 0.5s ease;
+            margin-right: 6px;
+        }
+        
+        button.refresh-button.loading .refresh-icon {
+            animation: rotate 1s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         button.danger {
             background-color: #f44336;
             color: white;
@@ -287,17 +371,19 @@
         
         .positions-table th {
             background-color: #fafafa;
-            padding: 12px 16px;
+            padding: 8px 10px;
             text-align: left;
             font-weight: 600;
             color: #495057;
             border-bottom: 2px solid #e0e0e0;
             white-space: nowrap;
+            font-size: 12px;
         }
         
         .positions-table td {
-            padding: 12px 16px;
+            padding: 8px 10px;
             border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
         }
         
         .positions-table tbody tr:hover {
@@ -579,6 +665,214 @@
                 padding: 8px 12px;
             }
         }
+        
+        /* Theme toggle button */
+        .theme-toggle {
+            background: none;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(0, 0, 0, 0.05);
+            transform: scale(1.05);
+        }
+        
+        /* Dark mode styles */
+        body.dark-mode {
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .header {
+            background: #161b22;
+            border-bottom-color: #30363d;
+        }
+        
+        body.dark-mode .header-title {
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .section {
+            background: #161b22;
+            border-color: #30363d;
+        }
+        
+        body.dark-mode .section-header {
+            background: #21262d;
+            border-bottom-color: #30363d;
+        }
+        
+        body.dark-mode .section-title {
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .api-config-section {
+            background: #161b22;
+            border-color: #30363d;
+        }
+        
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="password"],
+        body.dark-mode select {
+            background: #0d1117;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode input[type="text"]:focus,
+        body.dark-mode input[type="password"]:focus,
+        body.dark-mode select:focus {
+            border-color: #58a6ff;
+        }
+        
+        body.dark-mode .control-group button {
+            background: #21262d;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .control-group button:hover {
+            background: #30363d;
+        }
+        
+        body.dark-mode .control-group button.active {
+            background: #1f6feb;
+            border-color: #1f6feb;
+        }
+        
+        body.dark-mode .totals {
+            background: transparent;
+        }
+        
+        body.dark-mode .total-item {
+            background: #0d1117;
+            border: 1px solid #30363d;
+        }
+        
+        body.dark-mode .positions-table {
+            border-color: #30363d;
+        }
+        
+        body.dark-mode .positions-table th {
+            background: #0d1117;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .positions-table td {
+            border-color: #30363d;
+        }
+        
+        body.dark-mode .positions-table tr:hover {
+            background: rgba(56, 139, 253, 0.1);
+        }
+        
+        body.dark-mode .theme-toggle {
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        body.dark-mode .loading-overlay {
+            background: rgba(13, 17, 23, 0.95);
+        }
+        
+        body.dark-mode .api-key-display {
+            background: #21262d;
+            border-color: #30363d;
+        }
+        
+        body.dark-mode .api-key-display:hover {
+            background: #30363d;
+        }
+        
+        body.dark-mode #tooltip {
+            background: #30363d;
+            border-color: #484f58;
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .empty-state {
+            background: #0d1117;
+            border: 1px solid #30363d;
+        }
+        
+        body.dark-mode .error {
+            background: #1c1f26;
+            border-left-color: #f85149;
+            color: #f85149;
+        }
+        
+        body.dark-mode .api-info {
+            background: #1c2128;
+            border-left-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        body.dark-mode .cache-indicator {
+            background: #238636;
+        }
+        
+        body.dark-mode .header-fee-info {
+            color: #8b949e;
+        }
+        
+        body.dark-mode .fee-info-label {
+            color: #8b949e;
+        }
+        
+        body.dark-mode .fee-info-value {
+            color: #c9d1d9;
+        }
+        
+        body.dark-mode .fee-info-divider {
+            color: #30363d;
+        }
+        
+        body.dark-mode #chartLoadingIndicator {
+            background-color: #21262d;
+            border-bottom-color: #30363d;
+        }
+        
+        body.dark-mode #chartLoadingIndicator span {
+            color: #8b949e;
+        }
+        
+        body.dark-mode .chart-container {
+            background: #1c2128;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        body.dark-mode canvas#myChart {
+            background: #1c2128;
+        }
+        
+        body.dark-mode .refresh-button {
+            background: linear-gradient(135deg, #388bfd 0%, #1f6feb 100%);
+        }
+        
+        body.dark-mode .refresh-button:hover {
+            box-shadow: 0 4px 12px rgba(56, 139, 253, 0.4);
+        }
+        
+        body.dark-mode .refresh-button:active {
+            box-shadow: 0 2px 4px rgba(56, 139, 253, 0.4);
+        }
+        
+        body.dark-mode .refresh-button.loading {
+            background: #30363d;
+        }
     </style>
 </head>
 <body>
@@ -589,6 +883,22 @@
                 <img src="{{ url_for('static', filename='image.png') }}" alt="Kraken">
                 Kraken Funding & Fees Dashboard
             </div>
+            <div class="header-fee-info" id="headerFeeInfo" style="display: none;">
+                <div class="fee-info-item">
+                    <span class="fee-info-label">30d Volume:</span>
+                    <span class="fee-info-value" id="volume30d">--</span>
+                </div>
+                <div class="fee-info-divider">|</div>
+                <div class="fee-info-item">
+                    <span class="fee-info-label">Maker:</span>
+                    <span class="fee-info-value" id="makerFee">--</span>
+                </div>
+                <div class="fee-info-divider">|</div>
+                <div class="fee-info-item">
+                    <span class="fee-info-label">Taker:</span>
+                    <span class="fee-info-value" id="takerFee">--</span>
+                </div>
+            </div>
             <div class="header-api-info">
                 <span id="cacheIndicator" class="cache-indicator" style="display: none;">⚡ Cached</span>
                 {% if has_credentials %}
@@ -596,6 +906,9 @@
                     🔑 {{ masked_api_key }}
                 </div>
                 {% endif %}
+                <button class="theme-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
             </div>
         </div>
     </header>
@@ -635,25 +948,26 @@
         <!-- Dashboard Content (shown when credentials exist) -->
         <div id="dashboardContent" {% if not has_credentials %}class="hidden"{% endif %}>
             <!-- Open Positions Section -->
-            <div id="positionsSection" class="section hidden">
+            <div id="positionsSection" class="section">
                 <div class="section-header">
-                    <h2 class="section-title">Open Positions <span id="positionsRefreshIndicator" style="display: none; font-size: 14px; color: #666; font-weight: normal;">(updating...)</span></h2>
-                    <span style="font-size: 12px; color: #666;">Auto-refreshes every 5 seconds</span>
+                    <h2 class="section-title">Open Positions</h2>
+                    <span style="font-size: 12px; color: #666;">Auto-refreshes every 30 seconds</span>
                 </div>
                 <div class="section-content">
                     <div style="overflow-x: auto;">
-                        <table class="positions-table">
+                        <table class="positions-table" style="font-size: 13px;">
                             <thead>
                                 <tr>
-                                    <th>Symbol</th>
-                                    <th>Quantity</th>
-                                    <th>Avg Price</th>
-                                    <th>Current Price</th>
-                                    <th>Unrealized P&L</th>
-                                    <th>Accumulated Funding</th>
-                                    <th>Accumulated Fees</th>
-                                    <th>Net Unrealized P&L</th>
-                                    <th>Opened Date</th>
+                                    <th style="padding: 8px 10px;">Symbol</th>
+                                    <th style="padding: 8px 10px;">Side</th>
+                                    <th style="padding: 8px 10px;">Qty</th>
+                                    <th style="padding: 8px 10px;">Avg</th>
+                                    <th style="padding: 8px 10px;">Mark</th>
+                                    <th style="padding: 8px 10px;">Net PnL</th>
+                                    <th style="padding: 8px 10px;">UPnL</th>
+                                    <th style="padding: 8px 10px;">Funding</th>
+                                    <th style="padding: 8px 10px;">Fees</th>
+                                    <th style="padding: 8px 10px;">Opened</th>
                                 </tr>
                             </thead>
                             <tbody id="positionsTableBody">
@@ -673,10 +987,17 @@
             </div>
             
             <!-- Fee and Funding Analysis Section -->
-            <div class="section">
+            <div id="chartSection" class="section" style="display: none;">
                 <div class="section-header">
                     <h2 class="section-title">Fee and Funding Analysis</h2>
-                    <button class="secondary" onclick="updateData(true)">🔄 Refresh</button>
+                                                <button class="refresh-button" id="refreshButton" onclick="refreshAll()" title="Refresh data from Kraken">
+                    <span class="refresh-icon">🔄</span>
+                    <span class="refresh-text">Refresh</span>
+                </button>
+                </div>
+                <div id="chartLoadingIndicator" style="display: none; padding: 20px; text-align: center; background-color: #f5f5f5; border-bottom: 1px solid #e0e0e0;">
+                    <div class="loading-spinner" style="display: inline-block; margin-right: 10px; width: 20px; height: 20px; border-width: 2px; vertical-align: middle;"></div>
+                    <span style="color: #666; font-size: 14px; vertical-align: middle;">Loading funding and fees data...</span>
                 </div>
                 <div class="section-content">
                     <div class="chart-controls">
@@ -690,10 +1011,10 @@
                         
                         <div class="control-group">
                             <label>Time Period:</label>
-                            <select id="daySelector" onchange="filterAndDisplayData(parseInt(this.value))">
-                                <option value="7">Last 7 days</option>
+                            <select id="daySelector" onchange="updateData(false)">
+                                <option value="7" selected>Last 7 days</option>
                                 <option value="14">Last 14 days</option>
-                                <option value="30" selected>Last 30 days</option>
+                                <option value="30">Last 30 days</option>
                                 <option value="60">Last 60 days</option>
                                 <option value="90">Last 90 days</option>
                             </select>
@@ -753,26 +1074,224 @@
     <div id="tooltip" style="display: none;"></div>
     
     <script>
+        let hasCredentials = {{ 'true' if has_credentials else 'false' }};
+        let positionsRefreshInterval = null;
         let chart = null;
         let currentMode = 'combined';
-        let currentData = null;
-        let allData = null;
-        let tradesData = {};
-        let hasCredentials = {{ 'true' if has_credentials else 'false' }};
+        let loadStartTime;
         let isEditing = false;
-        let loadStartTime = 0;
-        let positionsRefreshInterval = null;
+        let currentData = null;
+        let tradesData = {};
+        let allData = null; // Store all 90 days of data
         
-        // Initialize
-        window.onload = function() {
-            if (hasCredentials) {
-                updateData();
+        // Tab synchronization
+        const TAB_ID = Date.now() + Math.random(); // Unique tab identifier
+        let isLeaderTab = false;
+        let leaderCheckInterval = null;
+        const LEADER_TIMEOUT = 35000; // 35 seconds (slightly more than refresh interval)
+        const POSITION_REFRESH_INTERVAL = 30000; // 30 seconds
+        
+        // Tab synchronization functions
+        function becomeLeader() {
+            isLeaderTab = true;
+            localStorage.setItem('leaderTabId', TAB_ID);
+            localStorage.setItem('leaderTabTimestamp', Date.now());
+            console.log('This tab is now the leader');
+            
+            // Start position refresh if we have credentials
+            if (hasCredentials && !positionsRefreshInterval) {
                 startPositionsAutoRefresh();
             }
-        };
+        }
         
-        // Auto-refresh positions every 5 seconds
+        function checkLeaderStatus() {
+            const leaderId = localStorage.getItem('leaderTabId');
+            const leaderTimestamp = parseInt(localStorage.getItem('leaderTabTimestamp') || '0');
+            const now = Date.now();
+            
+            // If no leader or leader is stale, become the leader
+            if (!leaderId || (now - leaderTimestamp) > LEADER_TIMEOUT) {
+                becomeLeader();
+            } else if (leaderId == TAB_ID) {
+                // We are the leader, update timestamp
+                localStorage.setItem('leaderTabTimestamp', now);
+                isLeaderTab = true;
+            } else {
+                // Another tab is leader
+                if (isLeaderTab) {
+                    console.log('This tab is no longer the leader');
+                    isLeaderTab = false;
+                    stopPositionsAutoRefresh();
+                }
+            }
+        }
+        
+        // Listen for storage events from other tabs
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'positionsData' && !isLeaderTab) {
+                // Another tab updated positions, use that data
+                try {
+                    const data = JSON.parse(e.newValue);
+                    if (data && data.timestamp && (Date.now() - data.timestamp) < 60000) {
+                        console.log('Received position update from leader tab');
+                        updatePositions(data.positions);
+                    }
+                } catch (error) {
+                    console.error('Error parsing positions data from storage:', error);
+                }
+            } else if (e.key === 'leaderTabId' && e.newValue != TAB_ID) {
+                // Another tab became leader
+                if (isLeaderTab) {
+                    console.log('Another tab became leader');
+                    isLeaderTab = false;
+                    stopPositionsAutoRefresh();
+                }
+            }
+        });
+        
+        // Clean up when tab closes
+        window.addEventListener('beforeunload', function() {
+            if (isLeaderTab) {
+                // Clear leader status so another tab can take over quickly
+                localStorage.removeItem('leaderTabId');
+                localStorage.removeItem('leaderTabTimestamp');
+            }
+        });
+        
+        // Start leader election check
+        function startLeaderElection() {
+            checkLeaderStatus();
+            // Check leader status every 5 seconds
+            leaderCheckInterval = setInterval(checkLeaderStatus, 5000);
+        }
+        
+        // Stop leader election check
+        function stopLeaderElection() {
+            if (leaderCheckInterval) {
+                clearInterval(leaderCheckInterval);
+                leaderCheckInterval = null;
+            }
+        }
+        
+        // Check if credentials are configured
+        function checkCredentials() {
+            return fetch('/api/auth/status')
+                .then(response => response.json())
+                .then(data => {
+                    hasCredentials = data.authenticated;
+                    if (hasCredentials && data.hasApiKey) {
+                        // Show masked API key in header
+                        const headerApiInfo = document.querySelector('.header-api-info');
+                        if (!headerApiInfo.querySelector('.api-key-display')) {
+                            const apiKeyDisplay = document.createElement('div');
+                            apiKeyDisplay.className = 'api-key-display';
+                            apiKeyDisplay.onclick = showApiConfig;
+                            apiKeyDisplay.innerHTML = `🔑 API Key (****...)`;
+                            headerApiInfo.appendChild(apiKeyDisplay);
+                        }
+                        // Hide API config and show dashboard
+                        document.getElementById('dashboardContent').classList.remove('hidden');
+                        document.getElementById('apiConfigSection').classList.add('hidden');
+                    } else {
+                        // Show API config
+                        showApiConfig();
+                    }
+                    return hasCredentials;
+                })
+                .catch(error => {
+                    console.error('Error checking credentials:', error);
+                    showApiConfig();
+                    return false;
+                });
+        }
+        
+        // Load fee information
+        function loadFeeInfo() {
+            fetch('/api/market/fees')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch fee information');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update the fee display in the header
+                    document.getElementById('volume30d').textContent = data.volume_30d_formatted;
+                    document.getElementById('makerFee').textContent = data.maker_fee_percentage;
+                    document.getElementById('takerFee').textContent = data.taker_fee_percentage;
+                    
+                    // Show the fee info section
+                    document.getElementById('headerFeeInfo').style.display = 'flex';
+                })
+                .catch(error => {
+                    console.error('Error loading fee information:', error);
+                    // Don't show the fee info if it fails to load
+                    document.getElementById('headerFeeInfo').style.display = 'none';
+                });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load dark mode preference
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+                document.querySelector('.theme-icon').textContent = '☀️';
+            }
+            
+            checkCredentials().then(() => {
+                if (hasCredentials) {
+                    // Start leader election for tab synchronization
+                    startLeaderElection();
+                    
+                    // Load fee information
+                    loadFeeInfo();
+                    
+                    // Only load positions on page load
+                    refreshPositionsOnly();
+                    
+                    // Auto-refresh will be started by leader election if this becomes the leader tab
+                    
+                    // Show a message to refresh for chart data
+                    showChartMessage();
+                }
+            });
+        });
+        
+        // Dark mode toggle
+        function toggleDarkMode() {
+            const body = document.body;
+            const icon = document.querySelector('.theme-icon');
+            
+            if (body.classList.contains('dark-mode')) {
+                body.classList.remove('dark-mode');
+                icon.textContent = '🌙';
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                body.classList.add('dark-mode');
+                icon.textContent = '☀️';
+                localStorage.setItem('darkMode', 'true');
+            }
+        }
+        
+        function showChartMessage() {
+            const chartSection = document.getElementById('chartSection');
+            chartSection.style.display = 'block';
+            
+            // Hide all content except the header
+            const sectionContent = chartSection.querySelector('.section-content');
+            if (sectionContent) {
+                sectionContent.style.display = 'none';
+            }
+        }
+        
+        // Auto-refresh positions - only if we're the leader tab
         function startPositionsAutoRefresh() {
+            // Only the leader tab should refresh positions
+            if (!isLeaderTab) {
+                console.log('Not leader tab, skipping position auto-refresh setup');
+                return;
+            }
+            
             // Clear any existing interval
             if (positionsRefreshInterval) {
                 clearInterval(positionsRefreshInterval);
@@ -780,10 +1299,11 @@
             
             // Set up new interval
             positionsRefreshInterval = setInterval(function() {
-                if (hasCredentials && !isEditing) {
+                if (hasCredentials && !isEditing && isLeaderTab) {
                     refreshPositionsOnly();
                 }
-            }, 5000); // 5 seconds
+            }, POSITION_REFRESH_INTERVAL);
+            console.log('Position auto-refresh started (leader tab)');
         }
         
         function stopPositionsAutoRefresh() {
@@ -795,36 +1315,13 @@
         
         // Refresh only positions data without refreshing the entire chart
         function refreshPositionsOnly() {
-            // Show refresh indicator
-            const indicator = document.getElementById('positionsRefreshIndicator');
-            if (indicator) {
-                indicator.style.display = 'inline';
-            }
-            
-            // Check if Celery is available and use async if possible
-            fetch('/api/celery-status')
-                .then(response => response.json())
-                .then(celeryStatus => {
-                    if (celeryStatus.status === 'available') {
-                        // Use async Celery processing
-                        return refreshPositionsAsync();
-                    } else {
-                        // Fallback to sync processing
-                        return refreshPositionsSync();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking Celery status:', error);
-                    // Fallback to sync on error
-                    return refreshPositionsSync();
-                });
+            // Always use sync refresh for positions
+            return refreshPositionsSync();
         }
         
         function refreshPositionsSync() {
-            // Original synchronous refresh
-            const indicator = document.getElementById('positionsRefreshIndicator');
-            
-            return fetch(`/api/data?days=90`)
+            // Use the new positions endpoint
+            return fetch(`/api/positions/detailed`)
                 .then(response => {
                     if (response.status === 401) {
                         stopPositionsAutoRefresh();
@@ -833,106 +1330,35 @@
                     return response.json();
                 })
                 .then(data => {
-                    if (data && data.positions) {
-                        updatePositions(data.positions);
+                    if (data) {
+                        updatePositions(data);
+                        
+                        // If we're the leader, broadcast to other tabs
+                        if (isLeaderTab) {
+                            try {
+                                localStorage.setItem('positionsData', JSON.stringify({
+                                    positions: data,
+                                    timestamp: Date.now()
+                                }));
+                            } catch (error) {
+                                console.error('Error broadcasting position data:', error);
+                            }
+                        }
                     }
+                    return data;
                 })
                 .catch(error => {
                     console.error('Error refreshing positions:', error);
-                })
-                .finally(() => {
-                    // Hide refresh indicator
-                    if (indicator) {
-                        indicator.style.display = 'none';
-                    }
+                    // Hide positions section on error
+                    document.getElementById('positionsSection').style.display = 'none';
+                    return null;
                 });
         }
         
-        function refreshPositionsAsync() {
-            // Async refresh using Celery
-            const indicator = document.getElementById('positionsRefreshIndicator');
-            
-            return fetch('/api/positions-async', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.task_id) {
-                    // Update indicator to show async processing
-                    if (indicator) {
-                        indicator.textContent = '(processing in background...)';
-                    }
-                    // Poll for task completion
-                    pollTaskStatus(data.task_id, indicator);
-                } else if (data.mode === 'sync') {
-                    // Celery not available, using sync mode
-                    if (data.positions) {
-                        updatePositions(data.positions);
-                    }
-                    if (indicator) {
-                        indicator.style.display = 'none';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error starting async refresh:', error);
-                // Fallback to sync
-                return refreshPositionsSync();
-            });
-        }
-        
-        function pollTaskStatus(taskId, indicator) {
-            const pollInterval = setInterval(() => {
-                fetch(`/api/task-status/${taskId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.state === 'SUCCESS') {
-                            clearInterval(pollInterval);
-                            if (data.result && data.result.positions) {
-                                updatePositions(data.result.positions);
-                            }
-                            if (indicator) {
-                                indicator.style.display = 'none';
-                            }
-                        } else if (data.state === 'FAILURE') {
-                            clearInterval(pollInterval);
-                            console.error('Task failed:', data.error);
-                            if (indicator) {
-                                indicator.textContent = '(failed)';
-                                setTimeout(() => {
-                                    indicator.style.display = 'none';
-                                }, 3000);
-                            }
-                        } else if (data.state === 'STARTED') {
-                            if (indicator) {
-                                indicator.textContent = '(calculating...)';
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        clearInterval(pollInterval);
-                        console.error('Error polling task status:', error);
-                        if (indicator) {
-                            indicator.style.display = 'none';
-                        }
-                    });
-            }, 1000); // Poll every second
-            
-            // Stop polling after 2 minutes
-            setTimeout(() => {
-                clearInterval(pollInterval);
-                if (indicator) {
-                    indicator.style.display = 'none';
-                }
-            }, 120000);
-        }
-        
         function showApiConfig() {
-            // Stop auto-refresh
+            // Stop auto-refresh and leader election
             stopPositionsAutoRefresh();
+            stopLeaderElection();
             
             // Hide dashboard content
             document.getElementById('dashboardContent').classList.add('hidden');
@@ -1020,11 +1446,17 @@
                     // Hide API config and show dashboard
                     hideApiConfig();
                     
-                    // Load data
-                    updateData();
+                    // Load fee information
+                    loadFeeInfo();
                     
-                    // Start auto-refresh
-                    startPositionsAutoRefresh();
+                    // Load positions only
+                    refreshPositionsOnly().then(() => {
+                        // Show message instead of loading chart data automatically
+                        showChartMessage();
+                    });
+                    
+                    // Start leader election for tab synchronization
+                    startLeaderElection();
                 } else {
                     showStatus(data.error || 'Failed to save credentials', 'error');
                 }
@@ -1092,26 +1524,20 @@
             }
         }
 
-        function updateData(forceRefresh = false) {
-            if (!hasCredentials) {
-                return;
-            }
-            
-            const days = parseInt(document.getElementById('daySelector').value);
-            
-            // If we already have all data loaded and not forcing refresh, just filter it
-            if (allData && !forceRefresh) {
-                filterAndDisplayData(days);
-                return;
-            }
-            
-            // Otherwise, fetch all 90 days of data
+        function loadFullChartData(forceRefresh = false) {
+            // Load 90 days of data for caching
             loadStartTime = Date.now();
-            showLoading(true, 'Fetching 90 days of data from Kraken...', 10);
+            
+            // Show the simple loading indicator
+            document.getElementById('chartLoadingIndicator').style.display = 'block';
+            showLoading(true, 'Loading chart data...', 10);
             document.getElementById('error').style.display = 'none';
             
-            // Always fetch 90 days
-            fetch(`/api/data?days=90`)
+            // Get 90 days of chart data
+            const url = forceRefresh 
+                ? '/api/analytics/chart-data?days=90&force_refresh=true'
+                : '/api/analytics/chart-data?days=90';
+            fetch(url)
                 .then(response => {
                     if (response.status === 401) {
                         hasCredentials = false;
@@ -1122,7 +1548,7 @@
                     return response.json();
                 })
                 .then(data => {
-                    showLoading(true, 'Processing data...', 70);
+                    showLoading(true, 'Processing chart data...', 70);
                     
                     if (data.error) {
                         throw new Error(data.error);
@@ -1136,25 +1562,120 @@
                     
                     showLoading(true, 'Rendering chart...', 90);
                     
-                    // Store all data
+                    // Store all 90 days of data
                     allData = data;
                     
                     showLoading(false);
                     
-                    // Now filter and display based on selected days
+                    // Hide the simple loading indicator
+                    document.getElementById('chartLoadingIndicator').style.display = 'none';
+                    
+                    // Now display based on selected days (default 7)
+                    const days = parseInt(document.getElementById('daySelector').value);
                     filterAndDisplayData(days);
+                    
+                    // Show success feedback on button
+                    const refreshBtn = document.getElementById('refreshButton');
+                    const refreshText = refreshBtn.querySelector('.refresh-text');
+                    if (refreshBtn && !refreshBtn.classList.contains('loading')) {
+                        refreshBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                        refreshText.textContent = '✓ Updated';
+                        setTimeout(() => {
+                            refreshBtn.style.background = '';
+                            refreshText.textContent = 'Refresh';
+                        }, 2000);
+                    }
                 })
                 .catch(error => {
                     showLoading(false);
+                    // Hide the simple loading indicator
+                    document.getElementById('chartLoadingIndicator').style.display = 'none';
+                    
                     if (error.message !== 'Unauthorized') {
                         document.getElementById('error').style.display = 'block';
-                        document.getElementById('error').textContent = 'Error loading data: ' + error.message;
+                        document.getElementById('error').textContent = 'Error loading chart data: ' + error.message;
+                        // Hide chart section on error
+                        document.getElementById('chartSection').style.display = 'none';
+                    }
+                })
+                .finally(() => {
+                    // Ensure button state is reset even on error
+                    const refreshBtn = document.getElementById('refreshButton');
+                    if (refreshBtn && refreshBtn.classList.contains('loading')) {
+                        setTimeout(() => {
+                            refreshBtn.classList.remove('loading');
+                            refreshBtn.querySelector('.refresh-text').textContent = 'Refresh';
+                            refreshBtn.disabled = false;
+                        }, 500);
                     }
                 });
+        }
+
+        function updateData(forceRefresh = false) {
+            if (!hasCredentials) {
+                return;
+            }
+            
+            const days = parseInt(document.getElementById('daySelector').value);
+            
+            // If we already have all data loaded and not forcing refresh, just filter it
+            if (allData && !forceRefresh) {
+                filterAndDisplayData(days);
+                return;
+            }
+            
+            // Otherwise, reload the full 90 days
+            loadFullChartData();
+        }
+        
+        function refreshAll() {
+            // This is called when the user clicks the Refresh button
+            const refreshBtn = document.getElementById('refreshButton');
+            const refreshText = refreshBtn.querySelector('.refresh-text');
+            
+            // Add loading state to button immediately
+            refreshBtn.classList.add('loading');
+            refreshText.textContent = 'Refreshing...';
+            refreshBtn.disabled = true;
+            
+            // Always clear cached data to force fresh fetch
+            allData = null;
+            
+            // Use setTimeout to ensure UI updates before starting the refresh
+            setTimeout(() => {
+                // Always refresh positions first
+                refreshPositionsOnly().then(() => {
+                    // Always load fresh data from the server
+                    loadFullChartData(true);
+                }).finally(() => {
+                    // Remove loading state after a minimum time to show the animation
+                    setTimeout(() => {
+                        refreshBtn.classList.remove('loading');
+                        refreshText.textContent = 'Refresh';
+                        refreshBtn.disabled = false;
+                    }, 1000);
+                });
+            }, 10);
         }
         
         function filterAndDisplayData(days) {
             if (!allData) return;
+            
+            // Show the chart section now that we have data
+            const chartSection = document.getElementById('chartSection');
+            chartSection.style.display = 'block';
+            
+            // Show the section content now that we have data
+            const sectionContent = chartSection.querySelector('.section-content');
+            if (sectionContent) {
+                sectionContent.style.display = 'block';
+            }
+            
+            // Make sure the totals section is visible
+            const totalsDiv = document.getElementById('totals');
+            if (totalsDiv) {
+                totalsDiv.style.display = 'flex';
+            }
             
             // Calculate how many data points to show
             const totalDataPoints = allData.labels.length;
@@ -1166,8 +1687,7 @@
                 labels: allData.labels.slice(startIndex),
                 fees: allData.fees.slice(startIndex),
                 funding: allData.funding.slice(startIndex),
-                trades: {},
-                positions: allData.positions
+                trades: {}
             };
             
             // Filter trades data
@@ -1182,7 +1702,8 @@
             
             updateChart(filteredData);
             updateTotals(filteredData);
-            updatePositions(filteredData.positions || []);
+            
+            // Don't refresh positions here - they're already loaded and on auto-refresh
         }
         
         function updateTotals(data) {
@@ -1217,16 +1738,18 @@
             const tbody = document.getElementById('positionsTableBody');
             const noPositions = document.getElementById('noPositions');
             
+            // Show the positions section now that we have data
+            positionsSection.style.display = 'block';
+            positionsSection.classList.remove('hidden');
+            
             if (!positions || positions.length === 0) {
-                positionsSection.classList.remove('hidden');
                 tbody.innerHTML = '';
-                noPositions.classList.remove('hidden');
+                noPositions.style.display = 'block';
                 document.getElementById('cappedDataNote').style.display = 'none';
                 return;
             }
             
-            positionsSection.classList.remove('hidden');
-            noPositions.classList.add('hidden');
+            noPositions.style.display = 'none';
             tbody.innerHTML = '';
             let isAnyDataCapped = false;
             
@@ -1236,21 +1759,23 @@
                 if (position.error) {
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td colspan="8" class="negative" style="text-align: center;">Error: ${position.error}</td>
+                        <td colspan="9" class="negative" style="text-align: center;">Error: ${position.error}</td>
                     `;
                 } else {
-                    // Format the opened date
+                    // Format the opened date in compact format
                     let openedDateStr = 'Unknown';
-                    if (position.trueOpenedDateUTC) {
-                        const openedDate = new Date(position.trueOpenedDateUTC);
+                    if (position.openedDate) {
+                        const openedDate = new Date(position.openedDate);
+                        // Format as "Jun 17 17:10"
                         openedDateStr = openedDate.toLocaleDateString('en-US', {
-                            year: 'numeric',
                             month: 'short',
                             day: 'numeric',
+                            timeZone: 'UTC'
+                        }) + ' ' + openedDate.toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit',
-                            timeZone: 'UTC',
-                            timeZoneName: 'short'
+                            hour12: false,
+                            timeZone: 'UTC'
                         });
                     }
                     
@@ -1264,13 +1789,14 @@
                     
                     row.innerHTML = `
                         <td>${position.symbol}</td>
-                        <td>${formatNumber(position.size)}</td>
+                        <td style="text-transform: uppercase; font-weight: 500; color: ${position.side === 'long' ? '#4CAF50' : '#f44336'}">${position.side}</td>
+                        <td>${formatNumber(Math.abs(position.size))}</td>
                         <td>${position.avgPrice > 0 ? '$' + formatNumber(position.avgPrice) : 'N/A'}</td>
                         <td>${position.currentPrice > 0 ? '$' + formatNumber(position.currentPrice) : 'N/A'}</td>
-                        <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
-                        <td class="negative">$${formatNumber(position.accumulatedFunding)}</td>
-                        <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
                         <td class="${netPnlClass}" style="font-weight: 600;">${netPnlPrefix}$${formatNumber(Math.abs(position.netUnrealizedPnl))}</td>
+                        <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
+                        <td class="negative">$${formatNumber(Math.abs(position.accumulatedFunding))}</td>
+                        <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
                         <td>${openedDateStr}</td>
                     `;
                 }
@@ -1411,7 +1937,8 @@
                         x: {
                             grid: {
                                 display: false
-                            }
+                            },
+                            stacked: currentMode === 'combined'
                         },
                         y: {
                             beginAtZero: true,
