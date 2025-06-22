@@ -47,7 +47,7 @@ class RateLimiter:
             self.last_request_time = time.time()
 
 # Global rate limiter
-rate_limiter = RateLimiter(min_interval=0.5)
+_rate_limiter = RateLimiter(min_interval=0.5)
 
 
 class KrakenAPIError(Exception):
@@ -127,77 +127,67 @@ def _handle_api_response(data: Any, expected_field: str = None,
 
 def make_request(path: str, api_key: str, api_secret: str, 
                 query: dict = None) -> dict:
-    """
-    Make authenticated request to Kraken Futures API with retry logic.
+    """Make an authenticated request to Kraken Futures API."""
+    # Rate limiting
+    _rate_limiter.wait_if_needed()
     
-    Args:
-        path: API endpoint path
-        api_key: Kraken API key
-        api_secret: Kraken API secret
-        query: Query parameters
+    url = f"https://futures.kraken.com{path}"
+    
+    # Prepare query string
+    query_str = ""
+    if query:
+        query_str = urllib.parse.urlencode(query)
+        url += "?" + query_str
+    
+    # Generate signature
+    nonce = str(int(time.time() * 1000))
+    authent = generate_signature(api_secret, query_str, nonce, path)
+    
+    # Headers
+    headers = {
+        "APIKey": api_key,
+        "Authent": authent,
+        "Nonce": nonce
+    }
+    
+    try:
+        logger.debug(f"Making request to {url}")
         
-    Returns:
-        Response data as dict
-    """
-    rate_limiter.wait_if_needed()
-    
-    url = f"{FUTURES_BASE_URL}{path}"
-    query = query or {}
-    query_str = urllib.parse.urlencode(query, doseq=True) if query else ""
-    
-    if query_str:
-        url += f"?{query_str}"
-    
-    retry_delay = INITIAL_RETRY_DELAY
-    last_error = None
-    
-    for attempt in range(MAX_RETRIES):
-        try:
-            nonce = str(int(time.time() * 1000))
-            headers = {
-                "APIKey": api_key,
-                "Authent": generate_signature(api_secret, query_str, nonce, path),
-                "Nonce": nonce
-            }
-            
-            req = urllib.request.Request(
-                url=url,
-                headers=headers,
-                method="GET",
-                data=b""  # Empty body for GET requests
-            )
-            
-            with urllib.request.urlopen(req) as response:
-                data = json.loads(response.read().decode())
-                
-                if "error" in data and data["error"]:
-                    raise KrakenAPIError(f"API Error: {data['error']}")
-                
-                return data
-                
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode() if e.fp else ""
-            logger.error(f"HTTP Error {e.code}: {e.reason} - {error_body}")
-            
-            if e.code == 429 or "rate limit" in error_body.lower():
-                if attempt < MAX_RETRIES - 1:
-                    wait_time = 5
-                    logger.warning(f"Rate limit hit, retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-                    continue
-            
-            last_error = f"HTTP Error {e.code}: {e.reason} - {error_body}"
-            
-        except Exception as e:
-            logger.error(f"Request failed: {str(e)}")
-            last_error = str(e)
+        # Make request
+        req = urllib.request.Request(
+            method="GET",
+            url=url,
+            headers=headers
+        )
         
-        if attempt < MAX_RETRIES - 1:
-            logger.warning(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
-            retry_delay = min(retry_delay * 1.5, 10)
-    
-    raise KrakenAPIError(f"Request failed after {MAX_RETRIES} attempts: {last_error}")
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+        
+        # Log response structure for ticker endpoints
+        if "/tickers/" in path:
+            logger.debug(f"Ticker response structure: {json.dumps(data, indent=2)}")
+        
+        # Check for errors
+        if data.get("result") == "error":
+            error_msg = data.get("error", "Unknown API error")
+            logger.error(f"API error response: {error_msg}")
+            raise KrakenAPIError(f"API Error: {error_msg}")
+        
+        return data
+        
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        logger.error(f"HTTP error {e.code}: {error_body}")
+        raise KrakenAPIError(f"HTTP {e.code}: {error_body}")
+    except urllib.error.URLError as e:
+        logger.error(f"Network error: {str(e)}")
+        raise KrakenAPIError(f"Network error: {str(e)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {str(e)}")
+        raise KrakenAPIError(f"Invalid JSON response: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise KrakenAPIError(f"Unexpected error: {str(e)}")
 
 
 def _fetch_paginated_data(api_key: str, api_secret: str, endpoint: str,
@@ -625,21 +615,56 @@ def batch_get_position_accumulated_data(api_key: str, api_secret: str,
 
 
 def get_ticker(api_key: str, api_secret: str, symbol: str) -> dict:
-    """Fetch current ticker data for a specific symbol."""
+    """Get ticker information for a symbol.
+    
+    The ticker endpoint returns fundingRate and fundingRatePrediction directly in the response.
+    """
     try:
         logger.info(f"Fetching ticker data for {symbol}")
         data = make_request(f"/derivatives/api/v3/tickers/{symbol}", api_key, api_secret)
-        ticker = _handle_api_response(data, "ticker", {})
         
-        if ticker:
-            logger.info(f"Found ticker for {symbol}: mark price = {ticker.get('markPrice')}")
+        # Log the raw response for debugging
+        logger.debug(f"Raw ticker response: {json.dumps(data, indent=2)}")
         
-        return ticker
+        # The ticker data is returned nested under "ticker" key
+        if data and data.get("result") == "success" and "ticker" in data:
+            ticker_data = data["ticker"]
+            logger.info(f"Ticker data for {symbol}: fundingRate={ticker_data.get('fundingRate')}, fundingRatePrediction={ticker_data.get('fundingRatePrediction')}")
+            return ticker_data
+        
+        return {}
     except KrakenAPIError:
         raise
     except Exception as e:
         logger.error(f"Unexpected error fetching ticker for {symbol}: {str(e)}")
         raise KrakenAPIError(f"Error fetching ticker: {str(e)}")
+
+
+def get_funding_rates(api_key: str, api_secret: str, symbol: str) -> dict:
+    """Get current and predicted funding rates for a symbol.
+    
+    Returns:
+        dict with 'current' and 'predicted' funding rates
+    """
+    try:
+        ticker_data = get_ticker(api_key, api_secret, symbol)
+        logger.debug(f"Ticker data for {symbol}: {json.dumps(ticker_data, indent=2)}")
+        
+        # Extract funding rates
+        current_rate = ticker_data.get("fundingRate", 0)
+        predicted_rate = ticker_data.get("fundingRatePrediction", 0)
+        
+        result = {
+            "current": float(current_rate) if current_rate is not None else 0,
+            "predicted": float(predicted_rate) if predicted_rate is not None else 0
+        }
+        
+        logger.info(f"Funding rates for {symbol}: current={result['current']}, predicted={result['predicted']}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting funding rates for {symbol}: {str(e)}")
+        return {"current": 0, "predicted": 0}
 
 
 def batch_get_tickers(api_key: str, api_secret: str, symbols: List[str]) -> Dict[str, dict]:

@@ -287,56 +287,97 @@
         
         /* Refresh button styles */
         button.refresh-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #5a4fcf 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             font-weight: 600;
-            transition: all 0.3s ease, background 0.5s ease;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+            border-radius: 8px;
+        }
+        
+        button.refresh-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+        
+        button.refresh-button:hover::before {
+            left: 100%;
         }
         
         button.refresh-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+            background: linear-gradient(135deg, #7c8ff5 0%, #6a5eda 100%);
         }
         
-        button.refresh-button:hover .refresh-icon {
-            animation: pulse 1.5s ease-in-out infinite;
+        button.refresh-button:hover .refresh-icon svg {
+            animation: spinOnce 0.6s ease-in-out;
         }
         
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+        @keyframes spinOnce {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         button.refresh-button:active {
             transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
         }
         
         button.refresh-button.loading {
-            background: #6c757d;
+            background: linear-gradient(135deg, #8b9dc3 0%, #6c7a89 100%);
             pointer-events: none;
             cursor: not-allowed;
-            opacity: 0.8;
+            opacity: 0.9;
         }
         
         button.refresh-button .refresh-icon {
-            display: inline-block;
-            transition: transform 0.5s ease;
-            margin-right: 6px;
+            display: inline-flex;
+            align-items: center;
+            margin-right: 8px;
+            vertical-align: middle;
         }
         
-        button.refresh-button.loading .refresh-icon {
-            animation: rotate 1s linear infinite;
+        button.refresh-button .refresh-icon svg {
+            width: 18px;
+            height: 18px;
+            transition: transform 0.3s ease;
         }
         
-        @keyframes rotate {
+        button.refresh-button.loading .refresh-icon svg {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        
+        /* Dark mode refresh button */
+        body.dark-mode button.refresh-button {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        body.dark-mode button.refresh-button:hover {
+            background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        body.dark-mode button.refresh-button.loading {
+            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
         }
         
         button.danger {
@@ -858,20 +899,36 @@
             background: #1c2128;
         }
         
-        body.dark-mode .refresh-button {
-            background: linear-gradient(135deg, #388bfd 0%, #1f6feb 100%);
+        /* Funding Rate Table Styles */
+        #fundingRateContainer h3 {
+            color: #495057;
         }
         
-        body.dark-mode .refresh-button:hover {
-            box-shadow: 0 4px 12px rgba(56, 139, 253, 0.4);
+        body.dark-mode #fundingRateContainer h3 {
+            color: #c9d1d9;
         }
         
-        body.dark-mode .refresh-button:active {
-            box-shadow: 0 2px 4px rgba(56, 139, 253, 0.4);
+        #fundingRateTableBody .negative {
+            color: #f44336;
         }
         
-        body.dark-mode .refresh-button.loading {
-            background: #30363d;
+        #fundingRateTableBody .positive {
+            color: #4CAF50;
+        }
+        
+        body.dark-mode #fundingHour0, body.dark-mode #fundingHour1,
+        body.dark-mode #fundingHour2, body.dark-mode #fundingHour3,
+        body.dark-mode #fundingHour4, body.dark-mode #fundingHour5,
+        body.dark-mode #fundingHour6, body.dark-mode #fundingHour7 {
+            background-color: #21262d;
+        }
+        
+        body.dark-mode .positions-table th[style*="background-color: #e3f2fd"] {
+            background-color: #1f4068 !important;
+        }
+        
+        body.dark-mode .positions-table th[style*="background-color: #e8f5e9"] {
+            background-color: #1b5e3f !important;
         }
     </style>
 </head>
@@ -978,6 +1035,37 @@
                     <p id="cappedDataNote" class="text-muted mt-2" style="text-align: center; display: none;">
                         * For positions older than 1 year, accumulated values are shown for the last year only.
                     </p>
+                    
+                    <!-- Funding Rate Table -->
+                    <div id="fundingRateContainer" style="margin-top: 30px; display: none;">
+                        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #495057;">Funding Rate Analysis</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="positions-table" style="font-size: 13px;">
+                                <thead>
+                                    <tr>
+                                        <th style="padding: 8px 10px;">Symbol</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour0">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour1">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour2">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour3">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour4">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour5">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour6">--:00</th>
+                                        <th style="padding: 8px 10px;" id="fundingHour7">--:00</th>
+                                        <th style="padding: 8px 10px; background-color: #e3f2fd;">Current</th>
+                                        <th style="padding: 8px 10px; background-color: #e8f5e9;">Predicted</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fundingRateTableBody">
+                                    <!-- Funding rates will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted mt-2" style="text-align: center; font-size: 12px;">
+                            Funding rates shown in USD. Current and Predicted columns show funding rate × position size.
+                        </p>
+                    </div>
+                    
                     <div id="noPositions" class="empty-state hidden">
                         <div class="empty-state-icon">📊</div>
                         <div class="empty-state-text">No open positions</div>
@@ -990,10 +1078,14 @@
             <div id="chartSection" class="section" style="display: none;">
                 <div class="section-header">
                     <h2 class="section-title">Fee and Funding Analysis</h2>
-                                                <button class="refresh-button" id="refreshButton" onclick="refreshAll()" title="Refresh data from Kraken">
-                    <span class="refresh-icon">🔄</span>
-                    <span class="refresh-text">Refresh</span>
-                </button>
+                    <button class="refresh-button" id="refreshButton" onclick="refreshAll()" title="Refresh data from Kraken">
+                        <span class="refresh-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                            </svg>
+                        </span>
+                        <span class="refresh-text">Refresh Data</span>
+                    </button>
                 </div>
                 <div id="chartLoadingIndicator" style="display: none; padding: 20px; text-align: center; background-color: #f5f5f5; border-bottom: 1px solid #e0e0e0;">
                     <div class="loading-spinner" style="display: inline-block; margin-right: 10px; width: 20px; height: 20px; border-width: 2px; vertical-align: middle;"></div>
@@ -1525,19 +1617,24 @@
         }
 
         function loadFullChartData(forceRefresh = false) {
-            // Load 90 days of data for caching
+            if (!hasCredentials) {
+                return Promise.reject(new Error('No credentials'));
+            }
+            
+            // Check if we already have cached data and not forcing refresh
+            if (allData && !forceRefresh) {
+                const days = parseInt(document.getElementById('daySelector').value);
+                filterAndDisplayData(days);
+                return Promise.resolve();
+            }
+            
+            // Show the simple loading indicator in the chart header
+            document.getElementById('chartLoadingIndicator').style.display = 'block';
+            
+            showLoading(true, 'Loading fee and funding data...', 10);
             loadStartTime = Date.now();
             
-            // Show the simple loading indicator
-            document.getElementById('chartLoadingIndicator').style.display = 'block';
-            showLoading(true, 'Loading chart data...', 10);
-            document.getElementById('error').style.display = 'none';
-            
-            // Get 90 days of chart data
-            const url = forceRefresh 
-                ? '/api/analytics/chart-data?days=90&force_refresh=true'
-                : '/api/analytics/chart-data?days=90';
-            fetch(url)
+            return fetch(`/api/analytics/charts-data`)
                 .then(response => {
                     if (response.status === 401) {
                         hasCredentials = false;
@@ -1573,18 +1670,6 @@
                     // Now display based on selected days (default 7)
                     const days = parseInt(document.getElementById('daySelector').value);
                     filterAndDisplayData(days);
-                    
-                    // Show success feedback on button
-                    const refreshBtn = document.getElementById('refreshButton');
-                    const refreshText = refreshBtn.querySelector('.refresh-text');
-                    if (refreshBtn && !refreshBtn.classList.contains('loading')) {
-                        refreshBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-                        refreshText.textContent = '✓ Updated';
-                        setTimeout(() => {
-                            refreshBtn.style.background = '';
-                            refreshText.textContent = 'Refresh';
-                        }, 2000);
-                    }
                 })
                 .catch(error => {
                     showLoading(false);
@@ -1632,6 +1717,12 @@
             // This is called when the user clicks the Refresh button
             const refreshBtn = document.getElementById('refreshButton');
             const refreshText = refreshBtn.querySelector('.refresh-text');
+            const refreshIcon = refreshBtn.querySelector('.refresh-icon svg');
+            
+            // Check if already loading
+            if (refreshBtn.classList.contains('loading')) {
+                return;
+            }
             
             // Add loading state to button immediately
             refreshBtn.classList.add('loading');
@@ -1643,17 +1734,44 @@
             
             // Use setTimeout to ensure UI updates before starting the refresh
             setTimeout(() => {
+                // Track if we had an error
+                let hasError = false;
+                
                 // Always refresh positions first
                 refreshPositionsOnly().then(() => {
                     // Always load fresh data from the server
-                    loadFullChartData(true);
-                }).finally(() => {
-                    // Remove loading state after a minimum time to show the animation
+                    return loadFullChartData(true);
+                }).then(() => {
+                    // Success animation
+                    refreshBtn.classList.remove('loading');
+                    refreshBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)';
+                    refreshIcon.innerHTML = '<path d="M20 6L9 17l-5-5" stroke-width="3"/>';
+                    refreshText.textContent = 'Updated!';
+                    
+                    // Reset button after delay
                     setTimeout(() => {
-                        refreshBtn.classList.remove('loading');
-                        refreshText.textContent = 'Refresh';
+                        refreshBtn.style.background = '';
+                        refreshIcon.innerHTML = '<path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>';
+                        refreshText.textContent = 'Refresh Data';
                         refreshBtn.disabled = false;
-                    }, 1000);
+                    }, 2000);
+                }).catch(error => {
+                    hasError = true;
+                    console.error('Error during refresh:', error);
+                    
+                    // Error animation
+                    refreshBtn.classList.remove('loading');
+                    refreshBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                    refreshIcon.innerHTML = '<path d="M6 18L18 6M6 6l12 12" stroke-width="3"/>';
+                    refreshText.textContent = 'Error!';
+                    
+                    // Reset button after delay
+                    setTimeout(() => {
+                        refreshBtn.style.background = '';
+                        refreshIcon.innerHTML = '<path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>';
+                        refreshText.textContent = 'Refresh Data';
+                        refreshBtn.disabled = false;
+                    }, 3000);
                 });
             }, 10);
         }
@@ -1737,6 +1855,8 @@
             const positionsSection = document.getElementById('positionsSection');
             const tbody = document.getElementById('positionsTableBody');
             const noPositions = document.getElementById('noPositions');
+            const fundingRateContainer = document.getElementById('fundingRateContainer');
+            const fundingRateBody = document.getElementById('fundingRateTableBody');
             
             // Show the positions section now that we have data
             positionsSection.style.display = 'block';
@@ -1746,12 +1866,37 @@
                 tbody.innerHTML = '';
                 noPositions.style.display = 'block';
                 document.getElementById('cappedDataNote').style.display = 'none';
+                fundingRateContainer.style.display = 'none';
                 return;
             }
             
             noPositions.style.display = 'none';
             tbody.innerHTML = '';
+            fundingRateBody.innerHTML = '';
             let isAnyDataCapped = false;
+            
+            // Check if any position has funding rate data
+            const hasDataForFundingTable = positions.some(p => p.hourlyFunding || p.fundingRateCurrent !== undefined);
+            
+            if (hasDataForFundingTable) {
+                fundingRateContainer.style.display = 'block';
+                
+                // Update hour headers - reversed order (oldest to newest)
+                const now = new Date();
+                for (let i = 0; i < 8; i++) {
+                    // Calculate from 7 hours ago to current hour
+                    const hourTime = new Date(now.getTime() - ((7 - i) * 60 * 60 * 1000));
+                    const hourLabel = hourTime.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false,
+                        timeZone: 'UTC'
+                    }).split(':')[0] + ':00';
+                    document.getElementById(`fundingHour${i}`).textContent = hourLabel;
+                }
+            } else {
+                fundingRateContainer.style.display = 'none';
+            }
             
             positions.forEach(position => {
                 const row = document.createElement('tr');
@@ -1805,6 +1950,39 @@
 
                 if (position.dataIsCapped) {
                     isAnyDataCapped = true;
+                }
+                
+                // Add funding rate row if data exists
+                if (hasDataForFundingTable && !position.error) {
+                    const fundingRow = document.createElement('tr');
+                    let fundingRowHTML = `<td>${position.symbol}</td>`;
+                    
+                    // Add hourly funding data - reversed order to match headers
+                    const hourlyFunding = position.hourlyFunding || [];
+                    for (let i = 0; i < 8; i++) {
+                        // Get data from the reversed index (7-i hours ago)
+                        const funding = hourlyFunding[7 - i] || 0;
+                        const fundingClass = funding === 0 ? '' : (funding < 0 ? 'negative' : 'positive');
+                        fundingRowHTML += `<td class="${fundingClass}">${funding === 0 ? '-' : '$' + formatNumber(Math.abs(funding))}</td>`;
+                    }
+                    
+                    // Add current funding rate × position size
+                    // For long positions: positive funding rate = cost (negative), negative funding rate = income (positive)
+                    // For short positions: positive funding rate = income (positive), negative funding rate = cost (negative)
+                    const isLong = position.side === 'long';
+                    const currentFunding = (position.fundingRateCurrent || 0) * Math.abs(position.size);
+                    const currentDisplay = isLong ? -currentFunding : currentFunding;
+                    const currentClass = currentDisplay === 0 ? '' : (currentDisplay < 0 ? 'negative' : 'positive');
+                    fundingRowHTML += `<td class="${currentClass}" style="background-color: #e3f2fd;">${currentFunding === 0 ? '-' : '$' + formatNumber(Math.abs(currentFunding))}</td>`;
+                    
+                    // Add predicted funding rate × position size
+                    const predictedFunding = (position.fundingRatePredicted || 0) * Math.abs(position.size);
+                    const predictedDisplay = isLong ? -predictedFunding : predictedFunding;
+                    const predictedClass = predictedDisplay === 0 ? '' : (predictedDisplay < 0 ? 'negative' : 'positive');
+                    fundingRowHTML += `<td class="${predictedClass}" style="background-color: #e8f5e9;">${predictedFunding === 0 ? '-' : '$' + formatNumber(Math.abs(predictedFunding))}</td>`;
+                    
+                    fundingRow.innerHTML = fundingRowHTML;
+                    fundingRateBody.appendChild(fundingRow);
                 }
             });
             
