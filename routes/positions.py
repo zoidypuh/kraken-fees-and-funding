@@ -100,11 +100,15 @@ def get_hourly_funding(api_key: str, api_secret: str, position: dict) -> dict:
         eight_hours_ago = current_ts - (8 * 60 * 60 * 1000)
         symbol = position.get("symbol", "").upper()
         
+        logger.debug(f"Fetching hourly funding for {symbol}")
+        
         # Fetch funding logs for the last 8 hours
         funding_logs = get_account_logs(
             api_key, api_secret, eight_hours_ago, current_ts,
             entry_type=ENTRY_TYPE_FUNDING_RATE_CHANGE
         )
+        
+        logger.debug(f"Found {len(funding_logs)} funding logs for analysis")
         
         # Initialize hourly buckets
         hourly_funding = {}
@@ -117,9 +121,12 @@ def get_hourly_funding(api_key: str, api_secret: str, position: dict) -> dict:
             hourly_funding[hour_label] = 0.0
         
         # Process funding logs
+        matching_count = 0
         for log in funding_logs:
-            log_contract = log.get("contract", "")
-            if symbol in log_contract.upper():
+            log_contract = log.get("contract", "").upper()
+            # Check if the contract matches the symbol
+            if symbol.replace("_", "") in log_contract.replace("_", "").upper():
+                matching_count += 1
                 # Get the timestamp of the log
                 log_date = log.get("date")
                 if log_date:
@@ -127,13 +134,16 @@ def get_hourly_funding(api_key: str, api_secret: str, position: dict) -> dict:
                     hour_label = log_time.strftime("%H:00")
                     
                     # Add funding to the appropriate hour bucket
-                    realized_funding = log.get('realized_funding', 0)
-                    if hour_label in hourly_funding:
+                    realized_funding = log.get('realized_funding')
+                    if realized_funding is not None and hour_label in hourly_funding:
                         hourly_funding[hour_label] += float(realized_funding)
+                        logger.debug(f"Added funding {realized_funding} to hour {hour_label}")
         
-        # Return ordered list of funding values (newest to oldest)
+        logger.debug(f"Matched {matching_count} funding logs for {symbol}")
+        
+        # Return ordered list of funding values (oldest to newest)
         result = []
-        for i in range(8):
+        for i in range(7, -1, -1):  # From 7 hours ago to current hour
             hour_time = now - timedelta(hours=i)
             hour_label = hour_time.strftime("%H:00")
             result.append(round(hourly_funding.get(hour_label, 0), 2))
