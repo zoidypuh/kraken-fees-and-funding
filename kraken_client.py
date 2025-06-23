@@ -681,13 +681,4 @@ def batch_get_tickers(api_key: str, api_secret: str, symbols: List[str]) -> Dict
     return tickers
 
 
-# ===== ASYNC SUPPORT (OPTIONAL) =====
-# Simplified async support - only expose if aiohttp is available
-
-def is_async_available() -> bool:
-    """Check if async functionality is available."""
-    try:
-        import aiohttp
-        return True
-    except ImportError:
-        return False 
+ 

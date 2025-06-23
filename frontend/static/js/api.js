@@ -58,13 +58,9 @@ class KrakenAPI {
         return this._fetch('/api/positions/detailed');
     }
 
-    async getPositionsDetailedAsync() {
-        return this._fetch('/api/positions/detailed-async');
-    }
 
-    async getPositionHistory(symbol) {
-        return this._fetch(`/api/positions/${symbol}/history`);
-    }
+
+
 
     // Market data endpoints
     async getTicker(symbol) {
@@ -87,9 +83,7 @@ class KrakenAPI {
         return this._fetch(`/api/analytics/chart-data?days=${days}`);
     }
 
-    async getChartDataAsync(days = 7) {
-        return this._fetch(`/api/analytics/chart-data-async?days=${days}`);
-    }
+
 
     async getFeesData(days = 7) {
         return this._fetch(`/api/analytics/fees?days=${days}`);
@@ -105,32 +99,7 @@ class KrakenAPI {
 
 
 
-    // Utility methods
-    async checkAsyncSupport() {
-        try {
-            // Try to use an async endpoint
-            await this.getChartDataAsync(1);
-            return true;
-        } catch (error) {
-            if (error.message.includes('501')) {
-                return false;
-            }
-            // If it's a different error, async might be available
-            return true;
-        }
-    }
 
-    async refreshPositionPrices(positions) {
-        if (!positions || positions.length === 0) return positions;
-        
-        const symbols = positions.map(p => p.symbol);
-        const tickers = await this.getMultipleTickers(symbols);
-        
-        return positions.map(pos => ({
-            ...pos,
-            currentPrice: tickers[pos.symbol]?.markPrice || pos.currentPrice
-        }));
-    }
 }
 
 // Create global API instance

@@ -139,7 +139,7 @@ The application includes several performance optimizations:
 - **Caching**: Automatic caching of API responses
 - **Parallel API calls**: Concurrent fetching of data
 - **Rate limiting**: Protection against API rate limits
-- **Async support**: Optional async I/O with aiohttp
+
 - **Response compression**: Gzip compression for smaller payloads
 
 ## Troubleshooting

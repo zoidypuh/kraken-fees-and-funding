@@ -14,8 +14,6 @@ from kraken_client import (
 from .auth import require_api_credentials
 from functools import lru_cache
 
-# Async support removed - Flask doesn't support async views without additional setup
-
 logger = logging.getLogger(__name__)
 
 analytics = Blueprint('analytics', __name__, url_prefix='/api/analytics')
@@ -344,5 +342,4 @@ def get_summary(api_key: str, api_secret: str):
         return jsonify({'error': 'Failed to fetch summary'}), 500
 
 
-# Async endpoint removed - Flask doesn't support async views without additional setup
-# If you need async support, consider using Quart or adding flask[async] dependency 
+ 

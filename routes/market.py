@@ -8,10 +8,6 @@ from typing import List, Dict
 from kraken_client import get_ticker, batch_get_tickers, get_fee_info, KrakenAPIError
 from .auth import require_api_credentials
 
-# Import async functions from unified client
-from kraken_client import is_async_available
-ASYNC_AVAILABLE = is_async_available()
-
 logger = logging.getLogger(__name__)
 
 market = Blueprint('market', __name__, url_prefix='/api/market')

@@ -114,8 +114,7 @@ def register_routes(app):
                 },
                 'positions': {
                     'GET /api/positions/': 'Get open positions (basic)',
-                    'GET /api/positions/detailed': 'Get positions with P&L',
-                    'GET /api/positions/<symbol>/history': 'Get position history'
+                    'GET /api/positions/detailed': 'Get positions with P&L'
                 },
                 'market': {
                     'GET /api/market/ticker/<symbol>': 'Get ticker data',

@@ -15,8 +15,6 @@ from .auth import require_api_credentials
 import time
 from datetime import datetime, timezone, timedelta
 
-# Async support removed - Flask doesn't support async views without additional setup
-
 logger = logging.getLogger(__name__)
 
 positions = Blueprint('positions', __name__, url_prefix='/api/positions')
@@ -254,21 +252,4 @@ def get_positions_detailed(api_key: str, api_secret: str):
         return jsonify({'error': 'Failed to fetch position details'}), 500
 
 
-@positions.route('/<symbol>/history')
-@require_api_credentials
-def get_position_history(api_key: str, api_secret: str, symbol: str):
-    """Get historical data for a specific position."""
-    try:
-        # This would fetch position-specific historical data
-        # For now, return a placeholder
-        return jsonify({
-            'symbol': symbol,
-            'message': 'Position history endpoint - to be implemented'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error fetching position history: {e}")
-        return jsonify({'error': 'Failed to fetch position history'}), 500
-
-
-# Async endpoint removed - Flask doesn't support async views without additional setup 
+ 
