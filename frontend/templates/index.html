@@ -1634,7 +1634,7 @@
             showLoading(true, 'Loading fee and funding data...', 10);
             loadStartTime = Date.now();
             
-            return fetch(`/api/analytics/charts-data`)
+            return fetch(`/api/analytics/chart-data`)
                 .then(response => {
                     if (response.status === 401) {
                         hasCredentials = false;
@@ -1679,8 +1679,8 @@
                     if (error.message !== 'Unauthorized') {
                         document.getElementById('error').style.display = 'block';
                         document.getElementById('error').textContent = 'Error loading chart data: ' + error.message;
-                        // Hide chart section on error
-                        document.getElementById('chartSection').style.display = 'none';
+                        // Don't hide the chart section, just show the error
+                        // document.getElementById('chartSection').style.display = 'none';
                     }
                 })
                 .finally(() => {
