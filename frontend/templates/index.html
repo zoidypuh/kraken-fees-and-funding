@@ -1023,7 +1023,7 @@
                                     <th style="padding: 8px 10px;">Net PnL</th>
                                     <th style="padding: 8px 10px;">UPnL</th>
                                     <th style="padding: 8px 10px;">Funding</th>
-                                    <th style="padding: 8px 10px;">Fees</th>
+                                    <th style="padding: 8px 10px;" title="Accumulated fees (+ estimated closing fees)">Fees</th>
                                     <th style="padding: 8px 10px;">Opened</th>
                                 </tr>
                             </thead>
@@ -1941,7 +1941,7 @@
                         <td class="${netPnlClass}" style="font-weight: 600;">${netPnlPrefix}$${formatNumber(Math.abs(position.netUnrealizedPnl))}</td>
                         <td class="${pnlClass}">${pnlPrefix}$${formatNumber(Math.abs(position.unrealizedPnl))}</td>
                         <td class="negative">$${formatNumber(Math.abs(position.accumulatedFunding))}</td>
-                        <td class="negative">$${formatNumber(position.accumulatedFees)}</td>
+                        <td class="negative">$${formatNumber(position.accumulatedFees)}${position.closingFees > 0 ? ' (+$' + formatNumber(position.closingFees) + ')' : ''}</td>
                         <td>${openedDateStr}</td>
                     `;
                 }
