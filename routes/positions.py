@@ -59,16 +59,16 @@ def calculate_unrealized_pnl(position: Dict, current_price: float) -> float:
 
 
 def format_position_data(kraken_pos: dict, current_price: float, 
-                        accumulated_data: dict, taker_fee: float = 0.0) -> dict:
+                        accumulated_data: dict, maker_fee: float = 0.0) -> dict:
     """Format position data with all calculated fields."""
     unrealized_pnl = calculate_unrealized_pnl(kraken_pos, current_price)
     accumulated_funding = accumulated_data.get('accumulated_funding', 0.0)
     accumulated_fees = accumulated_data.get('accumulated_fees', 0.0)
     
     # Calculate estimated closing fees
-    # Formula: position quantity × mark price × taker fee
+    # Formula: position quantity × mark price × maker fee
     size = kraken_pos['size']
-    closing_fees = abs(size) * current_price * taker_fee
+    closing_fees = abs(size) * current_price * maker_fee
     closing_fees = round(closing_fees, 2)
     
     # Calculate net P&L based on user requirement:
@@ -213,10 +213,10 @@ def get_positions_detailed(api_key: str, api_secret: str):
         # Get accumulated data (funding & fees) - using optimized version
         position_data = batch_get_position_accumulated_data(api_key, api_secret, positions)
         
-        # Get fee info to get the taker fee rate
+        # Get fee info to get the maker fee rate
         fee_info = get_fee_info(api_key, api_secret)
-        taker_fee = fee_info.get('taker_fee', 0.0)
-        logger.info(f"Using taker fee rate: {taker_fee * 100:.4f}%")
+        maker_fee = fee_info.get('maker_fee', 0.0)
+        logger.info(f"Using maker fee rate: {maker_fee * 100:.4f}%")
         
         # Convert list to dict keyed by symbol for easier lookup
         position_data_map = {item['symbol']: item for item in position_data}
@@ -230,8 +230,8 @@ def get_positions_detailed(api_key: str, api_secret: str):
             current_price = float(ticker.get('markPrice', pos['price'])) if ticker else pos['price']
             acc_data = position_data_map.get(symbol, {})
             
-            # Format position data with calculations (including taker fee)
-            position_data = format_position_data(pos, current_price, acc_data, taker_fee)
+            # Format position data with calculations (including maker fee)
+            position_data = format_position_data(pos, current_price, acc_data, maker_fee)
             
             # Add funding rates
             funding_rates = get_funding_rates(api_key, api_secret, symbol)
