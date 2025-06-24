@@ -87,19 +87,23 @@ const SummaryCards = ({ authenticated }) => {
       const response = await getChartData(90); // Get 90 days of data
       const data = response.data;
 
-      // Calculate totals
-      const totalFees = data.fees.reduce((sum, val) => sum + val, 0);
-      const totalFunding = data.funding.reduce((sum, val) => sum + val, 0);
-      const totalCost = totalFees + totalFunding;
+      // Check if we have valid data structure
+      if (data && data.fees && data.funding && Array.isArray(data.fees) && Array.isArray(data.funding)) {
+        // Calculate totals
+        const totalFees = data.fees.reduce((sum, val) => sum + val, 0);
+        const totalFunding = data.funding.reduce((sum, val) => sum + val, 0);
+        const totalCost = totalFees + totalFunding;
 
-      setSummaryData({
-        totalFees,
-        totalFunding,
-        totalCost,
-        netPnL: -totalCost, // Negative because these are costs
-      });
+        setSummaryData({
+          totalFees,
+          totalFunding,
+          totalCost,
+          netPnL: -totalCost, // Negative because these are costs
+        });
+      }
     } catch (error) {
       console.error('Error loading summary data:', error);
+      // Don't clear existing data on error
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   CardHeader,
@@ -38,18 +38,37 @@ const PositionsCard = ({ onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const isLoadingRef = useRef(false);
 
   const loadPositions = useCallback(async () => {
+    // Prevent concurrent requests
+    if (isLoadingRef.current) return;
+    
     try {
+      isLoadingRef.current = true;
       setError(null);
       const response = await getPositionsDetailed();
-      setPositions(response.data);
-      setLastUpdate(new Date());
+      console.log('Positions API response:', response.data);
+      
+      // Only update positions if we got valid data
+      if (response.data && Array.isArray(response.data)) {
+        setPositions(prevPositions => {
+          // Don't update to empty array if we already have positions
+          if (response.data.length === 0 && prevPositions.length > 0) {
+            console.warn('API returned empty positions array, keeping existing data');
+            return prevPositions;
+          }
+          return response.data;
+        });
+        setLastUpdate(new Date());
+      }
     } catch (error) {
       console.error('Error loading positions:', error);
+      // Don't clear existing positions on error
       setError('Failed to load positions');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, []);
 
@@ -62,9 +81,9 @@ const PositionsCard = ({ onRefresh }) => {
     return () => clearInterval(interval);
   }, [loadPositions]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setLoading(true);
-    loadPositions();
+    await loadPositions();
     if (onRefresh) onRefresh();
   };
 
