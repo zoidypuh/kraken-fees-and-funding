@@ -7,45 +7,16 @@ from datetime import datetime, timezone, timedelta
 import time
 import hashlib
 
-from kraken_client import (
-    get_account_logs, KrakenAPIError, 
-    ENTRY_TYPE_FUNDING_RATE_CHANGE, ENTRY_TYPE_FUTURES_TRADE
-)
+from kraken_client import KrakenAPIError
 from .auth import require_api_credentials
-from functools import lru_cache
+from unified_data_service import unified_data_service
 
 logger = logging.getLogger(__name__)
 
 analytics = Blueprint('analytics', __name__, url_prefix='/api/analytics')
 
-# Simple in-memory cache for chart data
-chart_data_cache = {}
-CACHE_TTL = 1800  # 30 minutes cache
-last_request_times = {}  # Track last request time per API key
 
 
-def format_summary_data(period_days: int, total_fees: float, total_funding: float,
-                       total_cost: float, trade_count: int, avg_daily_fees: float,
-                       avg_daily_funding: float) -> dict:
-    """Format analytics summary data."""
-    return {
-        'period': f'{period_days} days',
-        'totalFees': round(total_fees, 2),
-        'totalFunding': round(total_funding, 2),
-        'totalCost': round(total_cost, 2),
-        'tradeCount': trade_count,
-        'avgDailyFees': round(avg_daily_fees, 2),
-        'avgDailyFunding': round(avg_daily_funding, 2)
-    }
-
-
-@lru_cache(maxsize=2000)
-def parse_iso_date(date_str: str) -> datetime:
-    """Parse ISO date string with caching for performance."""
-    try:
-        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-    except:
-        return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
 
 @analytics.route('/chart-data')
@@ -62,119 +33,34 @@ def get_chart_data(api_key: str, api_secret: str):
         if days < 1 or days > 90:
             return jsonify({'error': 'Days must be between 1 and 90'}), 400
         
-        # Create cache key based on API key
-        cache_key = hashlib.md5(f"{api_key}:90days".encode()).hexdigest()
-        
         # Check if force refresh is requested
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
         
-        # Request throttling - minimum 10 seconds between non-cached requests
-        current_time = time.time()
-        last_request = last_request_times.get(cache_key, 0)
-        if not force_refresh and current_time - last_request < 10:
-            # Check cache first
-            if cache_key in chart_data_cache:
-                cached_data, cached_time = chart_data_cache[cache_key]
-                if current_time - cached_time < CACHE_TTL:
-                    logger.info(f"Using cached data for {days} days (throttled)")
-                    return jsonify(filter_data_to_days(cached_data, days))
-            # If no cache, return error
-            return jsonify({'error': 'Too many requests. Please wait a moment.'}), 429
+        if force_refresh:
+            unified_data_service.clear_cache(api_key)
         
-        # Check cache (unless force refresh)
-        if not force_refresh and cache_key in chart_data_cache:
-            cached_data, cached_time = chart_data_cache[cache_key]
-            if current_time - cached_time < CACHE_TTL:
-                logger.info(f"Using cached data for {days} days")
-                return jsonify(filter_data_to_days(cached_data, days))
+        # Get data from unified service
+        data = unified_data_service.get_processed_data(api_key, api_secret, days)
         
-        # Update last request time
-        last_request_times[cache_key] = current_time
+        # Format response for chart
+        labels = []
+        fees = []
+        funding = []
         
-        # On refresh, always fetch 90 days of data
-        logger.info("Fetching fresh data from Kraken API")
-        current_ts = int(time.time() * 1000)
-        ninety_days_ago = current_ts - (90 * 24 * 60 * 60 * 1000)
+        for day_data in data['daily_data']:
+            labels.append(day_data['date'])
+            fees.append(day_data['fees'])
+            funding.append(day_data['funding'])
         
-        # Fetch account logs with funding and fee entries
-        try:
-            logs = get_account_logs(
-                api_key, api_secret, 
-                ninety_days_ago, current_ts,
-                entry_type=[ENTRY_TYPE_FUNDING_RATE_CHANGE, ENTRY_TYPE_FUTURES_TRADE]
-            )
-            logger.info(f"Fetched {len(logs)} account logs")
-        except Exception as e:
-            logger.error(f"Error fetching data: {e}")
-            raise KrakenAPIError(f"Error fetching data: {str(e)}")
-        
-        # Process logs by UTC day
-        daily_data = {}
-        
-        for log in logs:
-            date_str = log.get('date', '')
-            if not date_str:
-                continue
-                
-            try:
-                # Parse date and get UTC day
-                log_time = parse_iso_date(date_str)
-                day_key = log_time.date().isoformat()
-                
-                if day_key not in daily_data:
-                    daily_data[day_key] = {
-                        'fees': 0.0,
-                        'funding': 0.0
-                    }
-                
-                # Process based on entry type
-                entry_type = log.get('info', '')
-                
-                if entry_type == ENTRY_TYPE_FUNDING_RATE_CHANGE:
-                    # Funding rate change
-                    realized_funding = log.get('realized_funding')
-                    if realized_funding is not None:
-                        # Store the absolute value of funding
-                        daily_data[day_key]['funding'] += abs(float(realized_funding))
-                        
-                elif entry_type == ENTRY_TYPE_FUTURES_TRADE:
-                    # Trade with fee
-                    fee = log.get('fee')
-                    if fee is not None:
-                        daily_data[day_key]['fees'] += abs(float(fee))
-                        
-            except Exception as e:
-                logger.warning(f"Error processing log entry: {e}")
-                continue
-        
-        # Generate all dates for 90 days
-        current_date = datetime.now(timezone.utc).date()
-        all_data = []
-        
-        for i in range(90):
-            date = (current_date - timedelta(days=89-i))
-            date_str = date.isoformat()
-            
-            if date_str in daily_data:
-                all_data.append({
-                    'date': date_str,
-                    'fees': round(daily_data[date_str]['fees'], 2),
-                    'funding': round(daily_data[date_str]['funding'], 2)
-                })
-            else:
-                all_data.append({
-                    'date': date_str,
-                    'fees': 0.0,
-                    'funding': 0.0
-                })
-        
-        # Cache the 90-day result
-        cache_result = {'data': all_data}
-        chart_data_cache[cache_key] = (cache_result, time.time())
-        logger.info("Cached 90 days of chart data")
-        
-        # Return filtered data for requested days
-        return jsonify(filter_data_to_days(cache_result, days))
+        return jsonify({
+            'labels': labels,
+            'fees': fees,
+            'funding': funding,
+            'trades': {},  # No longer tracking individual trades
+            'total_fees': data['summary']['total_fees'],
+            'total_funding': data['summary']['total_funding'],
+            'total_cost': data['summary']['total_cost']
+        })
         
     except KrakenAPIError as e:
         logger.error(f"Kraken API error: {e}")
@@ -184,36 +70,7 @@ def get_chart_data(api_key: str, api_secret: str):
         return jsonify({'error': 'Failed to fetch chart data'}), 500
 
 
-def filter_data_to_days(full_data: dict, days: int) -> dict:
-    """Filter the full 90-day data to the requested number of days."""
-    data_list = full_data.get('data', [])
-    
-    # Get the last N days
-    filtered_data = data_list[-days:] if len(data_list) >= days else data_list
-    
-    # Convert to the expected format
-    labels = []
-    fees = []
-    funding = []
-    
-    for item in filtered_data:
-        labels.append(item['date'])
-        fees.append(item['fees'])
-        funding.append(item['funding'])
-    
-    # Calculate totals
-    total_fees = sum(fees)
-    total_funding = sum(funding)
-    
-    return {
-        'labels': labels,
-        'fees': fees,
-        'funding': funding,
-        'trades': {},  # No longer tracking individual trades
-        'total_fees': round(total_fees, 2),
-        'total_funding': round(total_funding, 2),
-        'total_cost': round(total_fees + total_funding, 2)
-    }
+
 
 
 @analytics.route('/fees')
@@ -230,26 +87,21 @@ def get_fees_data(api_key: str, api_secret: str):
         if days < 1 or days > 90:
             return jsonify({'error': 'Days must be between 1 and 90'}), 400
         
-        # Use the main chart-data endpoint to get cached data
-        cache_key = hashlib.md5(f"{api_key}:90days".encode()).hexdigest()
+        # Get data from unified service
+        data = unified_data_service.get_processed_data(api_key, api_secret, days)
         
-        # Check cache
-        if cache_key in chart_data_cache:
-            cached_data, cached_time = chart_data_cache[cache_key]
-            if time.time() - cached_time < CACHE_TTL:
-                filtered = filter_data_to_days(cached_data, days)
-                return jsonify({
-                    'labels': filtered['labels'],
-                    'fees': filtered['fees'],
-                    'total': filtered['total_fees']
-                })
+        # Format response for fees
+        labels = []
+        fees = []
         
-        # If no cache, return empty data and suggest refresh
+        for day_data in data['daily_data']:
+            labels.append(day_data['date'])
+            fees.append(day_data['fees'])
+        
         return jsonify({
-            'labels': [],
-            'fees': [],
-            'total': 0,
-            'message': 'No cached data available. Please refresh the main chart first.'
+            'labels': labels,
+            'fees': fees,
+            'total': data['summary']['total_fees']
         })
         
     except Exception as e:
@@ -271,26 +123,21 @@ def get_funding_data(api_key: str, api_secret: str):
         if days < 1 or days > 90:
             return jsonify({'error': 'Days must be between 1 and 90'}), 400
         
-        # Use the main chart-data endpoint to get cached data
-        cache_key = hashlib.md5(f"{api_key}:90days".encode()).hexdigest()
+        # Get data from unified service
+        data = unified_data_service.get_processed_data(api_key, api_secret, days)
         
-        # Check cache
-        if cache_key in chart_data_cache:
-            cached_data, cached_time = chart_data_cache[cache_key]
-            if time.time() - cached_time < CACHE_TTL:
-                filtered = filter_data_to_days(cached_data, days)
-                return jsonify({
-                    'labels': filtered['labels'],
-                    'funding': filtered['funding'],
-                    'total': filtered['total_funding']
-                })
+        # Format response for funding
+        labels = []
+        funding = []
         
-        # If no cache, return empty data and suggest refresh
+        for day_data in data['daily_data']:
+            labels.append(day_data['date'])
+            funding.append(day_data['funding'])
+        
         return jsonify({
-            'labels': [],
-            'funding': [],
-            'total': 0,
-            'message': 'No cached data available. Please refresh the main chart first.'
+            'labels': labels,
+            'funding': funding,
+            'total': data['summary']['total_funding']
         })
         
     except Exception as e:
@@ -312,50 +159,47 @@ def get_summary(api_key: str, api_secret: str):
         if days < 1 or days > 90:
             return jsonify({'error': 'Days must be between 1 and 90'}), 400
         
-        # Use the main chart-data endpoint to get cached data
-        cache_key = hashlib.md5(f"{api_key}:90days".encode()).hexdigest()
+        # Get data from unified service
+        data = unified_data_service.get_processed_data(api_key, api_secret, days)
         
-        # Check cache
-        if cache_key in chart_data_cache:
-            cached_data, cached_time = chart_data_cache[cache_key]
-            if time.time() - cached_time < CACHE_TTL:
-                filtered = filter_data_to_days(cached_data, days)
-                
-                # Count non-zero fee days as trade days
-                trade_days = sum(1 for fee in filtered['fees'] if fee > 0)
-                
-                # Create summary data
-                summary_data = format_summary_data(
-                    period_days=days,
-                    total_fees=filtered['total_fees'],
-                    total_funding=filtered['total_funding'],
-                    total_cost=filtered['total_cost'],
-                    trade_count=trade_days,  # Approximate trade count by days with fees
-                    avg_daily_fees=filtered['total_fees'] / days if days > 0 else 0,
-                    avg_daily_funding=filtered['total_funding'] / days if days > 0 else 0
-                )
-                
-                return jsonify(summary_data)
-        
-        # If no cache, return empty summary
-        summary_data = format_summary_data(
-            period_days=days,
-            total_fees=0,
-            total_funding=0,
-            total_cost=0,
-            trade_count=0,
-            avg_daily_fees=0,
-            avg_daily_funding=0
-        )
-        
+        # Format summary data
+        summary = data['summary']
         return jsonify({
-            **summary_data,
-            'message': 'No cached data available. Please refresh the main chart first.'
+            'period': f'{days} days',
+            'totalFees': summary['total_fees'],
+            'totalFunding': summary['total_funding'],
+            'totalCost': summary['total_cost'],
+            'tradeCount': summary['total_trades'],
+            'avgDailyFees': summary['avg_daily_fees'],
+            'avgDailyFunding': summary['avg_daily_funding']
         })
         
     except Exception as e:
         logger.error(f"Error fetching summary: {e}")
         return jsonify({'error': 'Failed to fetch summary'}), 500
+
+
+@analytics.route('/preload')
+@require_api_credentials
+def preload_data(api_key: str, api_secret: str):
+    """Preload account data for 30 days to populate cache."""
+    try:
+        logger.info("Preloading account data for 30 days")
+        
+        # Load 30 days of data into cache
+        data = unified_data_service.get_processed_data(api_key, api_secret, 30)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Data preloaded successfully',
+            'period_days': data['period_days'],
+            'last_updated': data['last_updated'],
+            'summary': data['summary']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error preloading data: {e}")
+        return jsonify({'error': 'Failed to preload data'}), 500
 
 
  

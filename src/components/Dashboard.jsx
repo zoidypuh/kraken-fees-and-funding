@@ -31,7 +31,29 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
 
   useEffect(() => {
     if (authenticated) {
-      loadFeeInfo();
+      // Preload data when authenticated
+      const preloadAndInitialize = async () => {
+        try {
+          // Preload 30 days of account data
+          const response = await fetch('/api/analytics/preload', {
+            headers: {
+              'X-API-Key': localStorage.getItem('apiKey'),
+              'X-API-Secret': localStorage.getItem('apiSecret'),
+            }
+          });
+          
+          if (response.ok) {
+            console.log('Account data preloaded successfully');
+          }
+        } catch (error) {
+          console.error('Error preloading data:', error);
+        }
+        
+        // Load fee info regardless
+        loadFeeInfo();
+      };
+      
+      preloadAndInitialize();
     }
   }, [authenticated]);
 
