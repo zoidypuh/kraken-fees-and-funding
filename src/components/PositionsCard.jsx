@@ -30,7 +30,7 @@ import {
 import { getPositionsDetailed } from '../utils/api';
 import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatters';
 
-const REFRESH_INTERVAL = 5000; // 5 seconds
+const REFRESH_INTERVAL = 30000; // 30 seconds
 
 const PositionsCard = ({ onRefresh }) => {
   const theme = useTheme();
@@ -63,7 +63,13 @@ const PositionsCard = ({ onRefresh }) => {
     } catch (error) {
       console.error('Error loading positions:', error);
       // Don't clear existing positions on error
-      setError('Failed to load positions');
+      if (error.response?.status === 429) {
+        setError('Rate limit exceeded. Slowing down refresh rate...');
+        // Temporarily slow down refresh on rate limit
+        setTimeout(() => setError(null), 10000);
+      } else {
+        setError('Failed to load positions');
+      }
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
@@ -71,13 +77,19 @@ const PositionsCard = ({ onRefresh }) => {
   }, []);
 
   useEffect(() => {
+    // Initial load
     loadPositions();
     
-    // Set up auto-refresh
-    const interval = setInterval(loadPositions, REFRESH_INTERVAL);
+    // Set up auto-refresh with a delay to avoid immediate refresh
+    const timeoutId = setTimeout(() => {
+      const interval = setInterval(loadPositions, REFRESH_INTERVAL);
+      
+      // Store interval ID for cleanup
+      return () => clearInterval(interval);
+    }, REFRESH_INTERVAL);
     
-    return () => clearInterval(interval);
-  }, [loadPositions]);
+    return () => clearTimeout(timeoutId);
+  }, []); // Remove loadPositions dependency to avoid recreating interval
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -281,7 +293,7 @@ const PositionsCard = ({ onRefresh }) => {
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <AccessTime fontSize="small" color="action" />
             <Typography variant="caption" color="text.secondary">
-              Auto-refreshes every 5 seconds
+              Auto-refreshes every 30 seconds
             </Typography>
           </Box>
         )}

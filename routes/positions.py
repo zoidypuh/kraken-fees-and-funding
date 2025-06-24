@@ -1,9 +1,10 @@
 """
 Position-related API routes.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 import logging
 from typing import List, Dict
+import hashlib
 
 from kraken_client import (
     get_open_positions, batch_get_tickers, 
@@ -198,10 +199,23 @@ def get_positions(api_key: str, api_secret: str):
 @require_api_credentials
 def get_positions_detailed(api_key: str, api_secret: str):
     """Get positions with current prices and P&L calculations."""
+    from app import cache
+    
+    # Create cache key based on API key
+    cache_key = f"positions_detailed_{hashlib.md5(api_key.encode()).hexdigest()}"
+    
+    # Try to get cached data first
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached positions data")
+        return jsonify(cached_result)
+    
     try:
         positions = get_open_positions(api_key, api_secret)
         
         if not positions:
+            # Cache empty result too to avoid repeated API calls
+            cache.set(cache_key, [], timeout=15)
             return jsonify([])
         
         # Get current prices for all symbols
@@ -242,10 +256,18 @@ def get_positions_detailed(api_key: str, api_secret: str):
             
             result.append(position_data)
         
+        # Cache the result for 15 seconds
+        cache.set(cache_key, result, timeout=15)
+        logger.info(f"Cached positions data for 15 seconds")
+        
         return jsonify(result)
         
     except KrakenAPIError as e:
         logger.error(f"Kraken API error: {e}")
+        # Check if it's a rate limit error
+        if "429" in str(e) or "Rate Limit" in str(e):
+            # Don't cache rate limit errors
+            return jsonify({'error': 'Rate limit exceeded. Please wait a moment.'}), 429
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         logger.error(f"Error fetching detailed positions: {e}")
