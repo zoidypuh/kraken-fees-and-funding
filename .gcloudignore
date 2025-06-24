@@ -27,7 +27,7 @@ public/
 package.json
 package-lock.json
 vite.config.js
-index.html
+/index.html
 .env
 .env.local
 
