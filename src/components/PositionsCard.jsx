@@ -48,14 +48,12 @@ const PositionsCard = ({ onRefresh }) => {
       isLoadingRef.current = true;
       setError(null);
       const response = await getPositionsDetailed();
-      console.log('Positions API response:', response.data);
       
       // Only update positions if we got valid data
       if (response.data && Array.isArray(response.data)) {
         setPositions(prevPositions => {
           // Don't update to empty array if we already have positions
           if (response.data.length === 0 && prevPositions.length > 0) {
-            console.warn('API returned empty positions array, keeping existing data');
             return prevPositions;
           }
           return response.data;
