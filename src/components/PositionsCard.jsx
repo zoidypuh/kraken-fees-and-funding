@@ -30,7 +30,7 @@ import {
 import { getPositionsDetailed } from '../utils/api';
 import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatters';
 
-const REFRESH_INTERVAL = 60000; // 60 seconds
+const REFRESH_INTERVAL = 120000; // 120 seconds (2 minutes)
 
 const PositionsCard = ({ onRefresh }) => {
   const theme = useTheme();
@@ -42,11 +42,18 @@ const PositionsCard = ({ onRefresh }) => {
 
   const loadPositions = useCallback(async () => {
     // Prevent concurrent requests
-    if (isLoadingRef.current) return;
+    if (isLoadingRef.current) {
+      console.log('Skipping positions load - already loading');
+      return;
+    }
     
     try {
       isLoadingRef.current = true;
       setError(null);
+      
+      // Add small delay to debounce multiple calls
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const response = await getPositionsDetailed();
       
       // Only update positions if we got valid data
@@ -77,18 +84,37 @@ const PositionsCard = ({ onRefresh }) => {
   }, []);
 
   useEffect(() => {
-    // Initial load
-    loadPositions();
+    let interval;
+    let mounted = true;
     
-    // Set up auto-refresh with a delay to avoid immediate refresh
+    // Initial load with small delay to prevent multiple simultaneous calls
+    const loadInitial = async () => {
+      if (mounted) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (mounted) {
+          loadPositions();
+        }
+      }
+    };
+    
+    loadInitial();
+    
+    // Set up auto-refresh
     const timeoutId = setTimeout(() => {
-      const interval = setInterval(loadPositions, REFRESH_INTERVAL);
-      
-      // Store interval ID for cleanup
-      return () => clearInterval(interval);
+      if (mounted) {
+        interval = setInterval(() => {
+          if (mounted) {
+            loadPositions();
+          }
+        }, REFRESH_INTERVAL);
+      }
     }, REFRESH_INTERVAL);
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      if (interval) clearInterval(interval);
+    };
   }, []); // Remove loadPositions dependency to avoid recreating interval
 
   const handleRefresh = async () => {
@@ -293,7 +319,7 @@ const PositionsCard = ({ onRefresh }) => {
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <AccessTime fontSize="small" color="action" />
             <Typography variant="caption" color="text.secondary">
-              Auto-refreshes every 60 seconds
+              Auto-refreshes every 2 minutes
             </Typography>
           </Box>
         )}

@@ -195,47 +195,36 @@ def get_positions(api_key: str, api_secret: str):
         return jsonify({'error': 'Failed to fetch positions'}), 500
 
 
-from functools import wraps
-from app import cache as app_cache
-
-def cache_positions(timeout=15):
-    """Decorator to cache positions data."""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            api_key = kwargs.get('api_key', '')
-            cache_key = f"positions_detailed_{hashlib.md5(api_key.encode()).hexdigest()}"
-            
-            try:
-                # Try to get from cache
-                cached = app_cache.get(cache_key)
-                if cached is not None:
-                    logger.info("Returning cached positions data")
-                    return jsonify(cached)
-            except Exception as e:
-                logger.warning(f"Cache get failed: {e}")
-            
-            # Get fresh data
-            result = f(*args, **kwargs)
-            
-            # Cache the result if successful
-            if result.status_code == 200:
-                try:
-                    data = result.get_json()
-                    app_cache.set(cache_key, data, timeout=timeout)
-                    logger.info(f"Cached positions data for {timeout} seconds")
-                except Exception as e:
-                    logger.warning(f"Cache set failed: {e}")
-            
-            return result
-        return decorated_function
-    return decorator
+# Simple in-memory cache for positions
+_positions_cache = {}
+_positions_cache_time = {}
+POSITIONS_CACHE_TTL = 30  # 30 seconds
 
 @positions.route('/detailed')
 @require_api_credentials
-@cache_positions(timeout=20)
 def get_positions_detailed(api_key: str, api_secret: str):
     """Get positions with current prices and P&L calculations."""
+    # Simple caching logic
+    cache_key = f"positions_{hashlib.md5(api_key.encode()).hexdigest()}"
+    
+    # Check cache
+    if cache_key in _positions_cache:
+        cached_time = _positions_cache_time.get(cache_key, 0)
+        if time.time() - cached_time < POSITIONS_CACHE_TTL:
+            logger.info("Returning cached positions data")
+            return jsonify(_positions_cache[cache_key])
+    
+    # Rate limit check - prevent too frequent requests
+    last_request_time = _positions_cache_time.get(cache_key, 0)
+    if time.time() - last_request_time < 5:  # Minimum 5 seconds between requests
+        logger.warning("Request too frequent, returning cached or empty data")
+        if cache_key in _positions_cache:
+            return jsonify(_positions_cache[cache_key])
+        else:
+            return jsonify([])
+    
+    # Update last request time
+    _positions_cache_time[cache_key] = time.time()
     
     try:
         positions = get_open_positions(api_key, api_secret)
@@ -280,6 +269,11 @@ def get_positions_detailed(api_key: str, api_secret: str):
             position_data['hourlyFunding'] = hourly_data['hourly_funding']
             
             result.append(position_data)
+        
+        # Cache successful result
+        _positions_cache[cache_key] = result
+        _positions_cache_time[cache_key] = time.time()
+        logger.info(f"Cached {len(result)} positions for {POSITIONS_CACHE_TTL} seconds")
         
         return jsonify(result)
         
