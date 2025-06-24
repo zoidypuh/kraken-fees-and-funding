@@ -287,8 +287,16 @@ const ChartCard = () => {
   };
 
   return (
-    <Card>
+    <Card sx={{ 
+      boxShadow: 'none',
+      borderRadius: 0,
+      backgroundColor: 'transparent',
+      paddingTop: { xs: '160px', sm: '140px', md: '120px' }, // Space for summary cards overlay
+    }}>
       <CardHeader
+        sx={{ 
+          px: { xs: 2, sm: 3, md: 4 },
+        }}
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6">Trading Costs Analysis</Typography>
@@ -363,7 +371,12 @@ const ChartCard = () => {
         }
       />
       
-      <CardContent>
+      <CardContent sx={{ 
+        backgroundColor: theme.palette.background.paper,
+        borderRadius: 2,
+        mx: { xs: 2, sm: 3, md: 4 },
+        boxShadow: theme.shadows[1],
+      }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />

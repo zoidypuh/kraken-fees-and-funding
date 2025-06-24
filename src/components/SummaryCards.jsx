@@ -25,12 +25,16 @@ const SummaryCard = ({ title, value, icon, color, loading }) => {
     <Card
       sx={{
         height: '100%',
-        background: `linear-gradient(135deg, ${alpha(theme.palette[color].main, 0.1)} 0%, ${alpha(theme.palette[color].main, 0.05)} 100%)`,
+        background: theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.85)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+          : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+        backdropFilter: 'blur(12px)',
         borderTop: `4px solid ${theme.palette[color].main}`,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.1)}`,
         '&:hover': {
           transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[8],
+          boxShadow: `0 8px 30px ${alpha(theme.palette.common.black, 0.15)}`,
         },
       }}
     >
