@@ -82,11 +82,8 @@ def register_routes(app):
     app.register_blueprint(market)
     app.register_blueprint(volumes)
     
-    # Root route redirects to API info
-    @app.route('/')
-    def index():
-        """Redirect to API info page."""
-        return redirect('/api')
+    # Don't handle root route in Flask - let App Engine serve static files
+    # The root route will be handled by app.yaml static handlers
     
     # Health check
     @app.route('/health')
