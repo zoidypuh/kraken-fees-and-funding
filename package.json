@@ -1,0 +1,42 @@
+{
+  "name": "kraken-fees-and-funding-dashboard",
+  "version": "1.0.0",
+  "description": "A Flask web application to visualize trading fees and funding costs for Kraken Futures.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zoidypuh/kraken-fees-and-funding.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zoidypuh/kraken-fees-and-funding/issues"
+  },
+  "homepage": "https://github.com/zoidypuh/kraken-fees-and-funding#readme",
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.1.2",
+    "@mui/material": "^7.1.2",
+    "@mui/x-date-pickers": "^8.5.3",
+    "axios": "^1.10.0",
+    "date-fns": "^4.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "recharts": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "vite": "^7.0.0"
+  }
+}

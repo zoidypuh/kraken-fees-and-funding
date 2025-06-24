@@ -40,3 +40,4 @@ media/
 # Local development
 local_settings.py
 instance/ 
+node_modules

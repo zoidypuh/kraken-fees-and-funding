@@ -1,0 +1,129 @@
+import React from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Box,
+  Chip,
+  Avatar,
+  Tooltip,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  Brightness4,
+  Brightness7,
+  Key as KeyIcon,
+  TrendingUp,
+  TrendingDown,
+} from '@mui/icons-material';
+import { formatPercentage } from '../utils/formatters';
+
+const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  return (
+    <AppBar
+      position="fixed"
+      elevation={2}
+      sx={{
+        backdropFilter: 'blur(8px)',
+        backgroundColor: theme.palette.mode === 'dark'
+          ? 'rgba(18, 18, 18, 0.9)'
+          : 'rgba(255, 255, 255, 0.9)',
+      }}
+    >
+      <Toolbar sx={{ gap: 2 }}>
+        {/* Logo and Title */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
+          <Avatar
+            src="/image.png"
+            alt="Kraken"
+            sx={{ width: 36, height: 36 }}
+          />
+          <Typography
+            variant="h6"
+            component="h1"
+            sx={{
+              fontWeight: 600,
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              display: { xs: 'none', sm: 'block' },
+            }}
+          >
+            Kraken Dashboard
+          </Typography>
+        </Box>
+
+        {/* Fee Info */}
+        {feeInfo && !isMobile && (
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Tooltip title="30-day trading volume">
+              <Chip
+                icon={<TrendingUp fontSize="small" />}
+                label={`Vol: ${feeInfo.volume_30d_formatted}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontFamily: 'monospace' }}
+              />
+            </Tooltip>
+            <Tooltip title="Maker fee rate">
+              <Chip
+                label={`Maker: ${feeInfo.maker_fee_percentage}`}
+                size="small"
+                color="success"
+                sx={{ fontFamily: 'monospace' }}
+              />
+            </Tooltip>
+            <Tooltip title="Taker fee rate">
+              <Chip
+                label={`Taker: ${feeInfo.taker_fee_percentage}`}
+                size="small"
+                color="warning"
+                sx={{ fontFamily: 'monospace' }}
+              />
+            </Tooltip>
+          </Box>
+        )}
+
+        {/* Actions */}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="API Configuration">
+            <IconButton
+              onClick={onAuthClick}
+              color="inherit"
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                width: 40,
+                height: 40,
+              }}
+            >
+              <KeyIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title={darkMode ? 'Light mode' : 'Dark mode'}>
+            <IconButton
+              onClick={toggleDarkMode}
+              color="inherit"
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                width: 40,
+                height: 40,
+              }}
+            >
+              {darkMode ? <Brightness7 /> : <Brightness4 />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Toolbar>
+    </AppBar>
+  );
+};
+
+export default Header; 
