@@ -41,3 +41,6 @@ media/
 local_settings.py
 instance/ 
 node_modules
+
+# Build output
+dist/
