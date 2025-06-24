@@ -7,6 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Helper method for error handling
@@ -44,6 +45,10 @@ export const getMultipleTickers = (symbols) =>
 export const getMarkPrice = (symbol) => api.get(`/market/price/${symbol}`);
 
 export const getFeeInfo = () => api.get('/market/fees');
+
+export const getTradingVolumes = (days = 30) => {
+  return api.get('/volumes', { params: { days } });
+};
 
 // Analytics endpoints
 export const getChartData = (days = 7) =>

@@ -3,7 +3,7 @@ Kraken Futures Dashboard - Main Flask Application
 """
 import os
 import logging
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify, redirect, url_for
 from flask_compress import Compress
 from flask_caching import Cache
 from flask_limiter import Limiter
@@ -32,11 +32,7 @@ limiter = Limiter(
 
 def create_app(config_name=None):
     """Create and configure the Flask application."""
-    app = Flask(
-        __name__,
-        template_folder='frontend/templates',
-        static_folder='frontend/static'
-    )
+    app = Flask(__name__)
     
     # Configure Flask directly with environment variables
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
@@ -75,20 +71,22 @@ def register_routes(app):
     # Import blueprints
     from routes.auth import auth
     from routes.positions import positions
-    from routes.market import market
     from routes.analytics import analytics
+    from routes.market import market
+    from routes.volumes import volumes
     
     # Register blueprints
     app.register_blueprint(auth)
     app.register_blueprint(positions)
-    app.register_blueprint(market)
     app.register_blueprint(analytics)
+    app.register_blueprint(market)
+    app.register_blueprint(volumes)
     
-    # Root route
+    # Root route redirects to API info
     @app.route('/')
     def index():
-        """Serve the main dashboard page."""
-        return render_template('index.html')
+        """Redirect to API info page."""
+        return redirect('/api')
     
     # Health check
     @app.route('/health')
@@ -141,26 +139,22 @@ def register_routes(app):
     @app.route('/api/set-credentials', methods=['POST'])
     def legacy_set_credentials():
         """Redirect to new auth endpoint."""
-        from flask import redirect, url_for
         return redirect(url_for('auth.set_credentials'), code=307)
     
     @app.route('/api/clear-credentials', methods=['POST', 'DELETE'])
     def legacy_clear_credentials():
         """Redirect to new auth endpoint."""
-        from flask import redirect, url_for
         return redirect(url_for('auth.clear_credentials'), code=307)
     
     @app.route('/api/validate-credentials', methods=['POST'])
     def legacy_validate_credentials():
         """Redirect to new auth endpoint."""
-        from flask import redirect, url_for
         # Since we don't have a separate validate endpoint, redirect to set_credentials
         return redirect(url_for('auth.set_credentials'), code=307)
     
     @app.route('/api/data')
     def legacy_data():
         """Redirect to new analytics endpoint."""
-        from flask import redirect, url_for
         return redirect(url_for('analytics.get_chart_data'), code=307)
 
 

@@ -20,7 +20,8 @@ analytics = Blueprint('analytics', __name__, url_prefix='/api/analytics')
 
 # Simple in-memory cache for chart data
 chart_data_cache = {}
-CACHE_TTL = 300  # 5 minutes cache
+CACHE_TTL = 1800  # 30 minutes cache
+last_request_times = {}  # Track last request time per API key
 
 
 def format_summary_data(period_days: int, total_fees: float, total_funding: float,
@@ -67,13 +68,28 @@ def get_chart_data(api_key: str, api_secret: str):
         # Check if force refresh is requested
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
         
+        # Request throttling - minimum 10 seconds between non-cached requests
+        current_time = time.time()
+        last_request = last_request_times.get(cache_key, 0)
+        if not force_refresh and current_time - last_request < 10:
+            # Check cache first
+            if cache_key in chart_data_cache:
+                cached_data, cached_time = chart_data_cache[cache_key]
+                if current_time - cached_time < CACHE_TTL:
+                    logger.info(f"Using cached data for {days} days (throttled)")
+                    return jsonify(filter_data_to_days(cached_data, days))
+            # If no cache, return error
+            return jsonify({'error': 'Too many requests. Please wait a moment.'}), 429
+        
         # Check cache (unless force refresh)
         if not force_refresh and cache_key in chart_data_cache:
             cached_data, cached_time = chart_data_cache[cache_key]
-            if time.time() - cached_time < CACHE_TTL:
+            if current_time - cached_time < CACHE_TTL:
                 logger.info(f"Using cached data for {days} days")
-                # Filter cached data to requested days
                 return jsonify(filter_data_to_days(cached_data, days))
+        
+        # Update last request time
+        last_request_times[cache_key] = current_time
         
         # On refresh, always fetch 90 days of data
         logger.info("Fetching fresh data from Kraken API")

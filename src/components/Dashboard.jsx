@@ -16,6 +16,7 @@ import Header from './Header';
 import PositionsCard from './PositionsCard';
 import ChartCard from './ChartCard';
 import SummaryCards from './SummaryCards';
+import VolumeCard from './VolumeCard';
 import { getFeeInfo } from '../utils/api';
 
 const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) => {
@@ -24,6 +25,9 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
   const [feeInfo, setFeeInfo] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [positionsKey, setPositionsKey] = useState(0);
+  const [chartDays, setChartDays] = useState(7);
+  const [chartData, setChartData] = useState(null);
+  const [view, setView] = useState('positions'); // Default to positions view
 
   useEffect(() => {
     if (authenticated) {
@@ -68,6 +72,8 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
         toggleDarkMode={toggleDarkMode}
         feeInfo={feeInfo}
         onAuthClick={onAuthRequired}
+        view={view}
+        onViewChange={setView}
       />
       
       <Toolbar /> {/* Spacing for fixed header */}
@@ -77,34 +83,58 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
           flex: 1,
           width: '100%',
           overflow: 'hidden',
+          mt: 3,
         }}
       >
         <Fade in timeout={800}>
           <Box sx={{ width: '100%' }}>
-            {/* Positions Section - First */}
-            <Box sx={{ mb: 3 }}>
-              <PositionsCard 
-                key={positionsKey}
-                onRefresh={refreshPositions}
-              />
-            </Box>
+            {view === 'positions' ? (
+              /* Positions View */
+              <Box sx={{ mb: 3 }}>
+                <PositionsCard 
+                  key={positionsKey}
+                  onRefresh={refreshPositions}
+                />
+              </Box>
+            ) : view === 'trading' ? (
+              /* Trading Cost Activity View */
+              <>
+                {/* Summary Cards - Above Chart */}
+                <Box sx={{ 
+                  mb: 3,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  px: { xs: 2, sm: 3, md: 4 },
+                }}>
+                  <Box sx={{ 
+                    width: { xs: '100%', sm: '90%', md: '80%', lg: '60%' },
+                    maxWidth: '900px',
+                    display: 'flex',
+                    justifyContent: 'center'
+                  }}>
+                    <SummaryCards 
+                      authenticated={authenticated} 
+                      days={chartDays}
+                      chartData={chartData}
+                    />
+                  </Box>
+                </Box>
 
-            {/* Summary Cards - Second */}
-            <Box sx={{ 
-              mb: 3,
-              px: { xs: 2, sm: 3, md: 4 },
-              py: { xs: 2, sm: 3 },
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? theme.palette.grey[900] 
-                : theme.palette.grey[50]
-            }}>
-              <SummaryCards authenticated={authenticated} />
-            </Box>
-
-            {/* Chart Section - Third */}
-            <Box sx={{ mb: 3 }}>
-              <ChartCard />
-            </Box>
+                {/* Chart Section */}
+                <Box sx={{ mb: 3 }}>
+                  <ChartCard 
+                    onDaysChange={setChartDays}
+                    days={chartDays}
+                    onDataLoad={setChartData}
+                  />
+                </Box>
+              </>
+            ) : (
+              /* Trading Volume View */
+              <Box sx={{ mb: 3 }}>
+                <VolumeCard />
+              </Box>
+            )}
           </Box>
         </Fade>
       </Box>

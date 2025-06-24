@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Card,
   CardHeader,
@@ -43,18 +43,49 @@ import { format } from 'date-fns';
 import { getChartData } from '../utils/api';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 
-const ChartCard = () => {
+const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [displayData, setDisplayData] = useState(null);
   const [chartMode, setChartMode] = useState('combined');
-  const [days, setDays] = useState(7);
   const [cacheHit, setCacheHit] = useState(false);
+  
+  const isLoadingRef = useRef(false);
+  const lastLoadTime = useRef(0);
+  const loadTimeoutRef = useRef(null);
 
+  // Initial load on mount
   useEffect(() => {
-    loadChartData();
+    const timer = setTimeout(() => {
+      loadChartData();
+    }, 500); // Small delay to let component settle
+    
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps for mount only
+  
+  // Load when days change (but not on mount)
+  useEffect(() => {
+    if (!chartData) return; // Skip if no initial data yet
+    
+    // Clear any pending timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    
+    // Debounce the load call
+    loadTimeoutRef.current = setTimeout(() => {
+      loadChartData();
+    }, 300);
+    
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   useEffect(() => {
@@ -63,25 +94,52 @@ const ChartCard = () => {
     }
   }, [chartData, chartMode]);
 
-  const loadChartData = async () => {
+  const loadChartData = useCallback(async () => {
+    // Prevent concurrent requests
+    if (isLoadingRef.current) {
+      return;
+    }
+    
+    // Rate limit: minimum 5 seconds between requests
+    const now = Date.now();
+    if (now - lastLoadTime.current < 5000) {
+      console.log('Skipping request - too soon after last request');
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    lastLoadTime.current = now;
+    
     setLoading(true);
     setError(null);
     const startTime = Date.now();
 
     try {
       const response = await getChartData(days);
-      setChartData(response.data);
+      const data = response.data;
+      setChartData(data);
+      
+      // Pass data to parent
+      if (onDataLoad) {
+        onDataLoad(data);
+      }
       
       // Check if data was cached
       const loadTime = Date.now() - startTime;
       setCacheHit(loadTime < 500);
     } catch (error) {
       console.error('Error loading chart data:', error);
-      setError('Failed to load chart data');
+      // Handle rate limit errors specifically
+      if (error.response?.status === 429) {
+        setError('API rate limit reached. Please wait a moment before trying again.');
+      } else {
+        setError('Failed to load chart data');
+      }
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [days, onDataLoad]);
 
   const processChartData = () => {
     if (!chartData) return;
@@ -89,9 +147,9 @@ const ChartCard = () => {
     const data = chartData.labels.map((label, index) => {
       const baseData = {
         date: label,
-        fees: -Math.abs(chartData.fees[index]),
-        funding: -Math.abs(chartData.funding[index]),
-        combined: -Math.abs(chartData.fees[index] + chartData.funding[index]),
+        fees: Math.abs(chartData.fees[index]),
+        funding: Math.abs(chartData.funding[index]),
+        combined: Math.abs(chartData.fees[index] + chartData.funding[index]),
       };
 
       if (chartMode === 'cumulative') {
@@ -100,9 +158,9 @@ const ChartCard = () => {
         
         return {
           ...baseData,
-          cumulativeFees: -Math.abs(cumulativeFees),
-          cumulativeFunding: -Math.abs(cumulativeFunding),
-          cumulativeTotal: -Math.abs(cumulativeFees + cumulativeFunding),
+          cumulativeFees: Math.abs(cumulativeFees),
+          cumulativeFunding: Math.abs(cumulativeFunding),
+          cumulativeTotal: Math.abs(cumulativeFees + cumulativeFunding),
         };
       }
 
@@ -112,9 +170,11 @@ const ChartCard = () => {
     setDisplayData(data);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
+    // Force refresh by clearing last load time
+    lastLoadTime.current = 0;
     loadChartData();
-  };
+  }, [loadChartData]);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload) return null;
@@ -141,7 +201,7 @@ const ChartCard = () => {
               }}
             />
             <Typography variant="body2">
-              {entry.name}: {formatCurrency(Math.abs(entry.value))}
+              {entry.name}: {formatCurrency(entry.value)}
             </Typography>
           </Box>
         ))}
@@ -170,7 +230,7 @@ const ChartCard = () => {
             <YAxis
               stroke={theme.palette.text.secondary}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.abs(value)}`}
+              tickFormatter={(value) => `$${value}`}
             />
             <RechartsTooltip content={<CustomTooltip />} />
             <Bar
@@ -194,7 +254,7 @@ const ChartCard = () => {
             <YAxis
               stroke={theme.palette.text.secondary}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.abs(value)}`}
+              tickFormatter={(value) => `$${value}`}
             />
             <RechartsTooltip content={<CustomTooltip />} />
             <Bar
@@ -218,7 +278,7 @@ const ChartCard = () => {
             <YAxis
               stroke={theme.palette.text.secondary}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.abs(value)}`}
+              tickFormatter={(value) => `$${value}`}
             />
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend />
@@ -249,7 +309,7 @@ const ChartCard = () => {
             <YAxis
               stroke={theme.palette.text.secondary}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.abs(value)}`}
+              tickFormatter={(value) => `$${value}`}
             />
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend />
@@ -287,7 +347,17 @@ const ChartCard = () => {
   };
 
   return (
-    <Card>
+    <Card 
+      sx={{ 
+        borderRadius: 3,
+        mx: { xs: 2, sm: 3, md: 4 },
+        boxShadow: theme.shadows[2],
+        '&:hover': {
+          boxShadow: theme.shadows[4],
+        },
+        transition: 'box-shadow 0.3s ease-in-out',
+      }}
+    >
       <CardHeader
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -309,7 +379,7 @@ const ChartCard = () => {
               <Select
                 value={days}
                 label="Period"
-                onChange={(e) => setDays(e.target.value)}
+                onChange={(e) => onDaysChange && onDaysChange(e.target.value)}
               >
                 <MenuItem value={7}>7 days</MenuItem>
                 <MenuItem value={14}>14 days</MenuItem>

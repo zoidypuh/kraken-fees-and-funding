@@ -10,6 +10,8 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Brightness4,
@@ -17,10 +19,12 @@ import {
   Key as KeyIcon,
   TrendingUp,
   TrendingDown,
+  ShowChart,
+  TableChart,
 } from '@mui/icons-material';
 import { formatPercentage } from '../utils/formatters';
 
-const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick }) => {
+const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewChange }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -38,7 +42,7 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick }) => {
     >
       <Toolbar sx={{ gap: 2 }}>
         {/* Logo and Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar
             src="/image.png"
             alt="Kraken"
@@ -59,68 +63,140 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick }) => {
           </Typography>
         </Box>
 
-        {/* Fee Info */}
-        {feeInfo && !isMobile && (
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Tooltip title="30-day trading volume">
-              <Chip
-                icon={<TrendingUp fontSize="small" />}
-                label={`Vol: ${feeInfo.volume_30d_formatted}`}
-                size="small"
-                variant="outlined"
-                sx={{ fontFamily: 'monospace' }}
-              />
+        {/* View Toggle - Centered */}
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+          <ToggleButtonGroup
+            value={view}
+            exclusive
+            onChange={(event, newView) => {
+              if (newView !== null) {
+                onViewChange(newView);
+              }
+            }}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(0, 0, 0, 0.04)',
+              borderRadius: 2,
+            }}
+          >
+            <ToggleButton 
+              value="positions" 
+              sx={{ 
+                px: 2,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.dark,
+                  }
+                }
+              }}
+            >
+              <TableChart sx={{ mr: 1 }} />
+              Open Positions
+            </ToggleButton>
+            <ToggleButton 
+              value="trading" 
+              sx={{ 
+                px: 2,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.dark,
+                  }
+                }
+              }}
+            >
+              <ShowChart sx={{ mr: 1 }} />
+              Trading Cost Activity
+            </ToggleButton>
+            <ToggleButton 
+              value="volume" 
+              sx={{ 
+                px: 2,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.dark,
+                  }
+                }
+              }}
+            >
+              <TrendingUp sx={{ mr: 1 }} />
+              Trading Volume
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Right side - Fee Info and Actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Fee Info */}
+          {feeInfo && !isMobile && (
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Tooltip title="30-day trading volume">
+                <Chip
+                  icon={<TrendingUp fontSize="small" />}
+                  label={`Vol: ${feeInfo.volume_30d_formatted}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontFamily: 'monospace' }}
+                />
+              </Tooltip>
+              <Tooltip title="Maker fee rate">
+                <Chip
+                  label={`Maker: ${feeInfo.maker_fee_percentage}`}
+                  size="small"
+                  color="success"
+                  sx={{ fontFamily: 'monospace' }}
+                />
+              </Tooltip>
+              <Tooltip title="Taker fee rate">
+                <Chip
+                  label={`Taker: ${feeInfo.taker_fee_percentage}`}
+                  size="small"
+                  color="warning"
+                  sx={{ fontFamily: 'monospace' }}
+                />
+              </Tooltip>
+            </Box>
+          )}
+
+          {/* Actions */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="API Configuration">
+              <IconButton
+                onClick={onAuthClick}
+                color="inherit"
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  width: 40,
+                  height: 40,
+                }}
+              >
+                <KeyIcon />
+              </IconButton>
             </Tooltip>
-            <Tooltip title="Maker fee rate">
-              <Chip
-                label={`Maker: ${feeInfo.maker_fee_percentage}`}
-                size="small"
-                color="success"
-                sx={{ fontFamily: 'monospace' }}
-              />
-            </Tooltip>
-            <Tooltip title="Taker fee rate">
-              <Chip
-                label={`Taker: ${feeInfo.taker_fee_percentage}`}
-                size="small"
-                color="warning"
-                sx={{ fontFamily: 'monospace' }}
-              />
+
+            <Tooltip title={darkMode ? 'Light mode' : 'Dark mode'}>
+              <IconButton
+                onClick={toggleDarkMode}
+                color="inherit"
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  width: 40,
+                  height: 40,
+                }}
+              >
+                {darkMode ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
             </Tooltip>
           </Box>
-        )}
-
-        {/* Actions */}
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="API Configuration">
-            <IconButton
-              onClick={onAuthClick}
-              color="inherit"
-              sx={{
-                border: '1px solid',
-                borderColor: 'divider',
-                width: 40,
-                height: 40,
-              }}
-            >
-              <KeyIcon />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title={darkMode ? 'Light mode' : 'Dark mode'}>
-            <IconButton
-              onClick={toggleDarkMode}
-              color="inherit"
-              sx={{
-                border: '1px solid',
-                borderColor: 'divider',
-                width: 40,
-                height: 40,
-              }}
-            >
-              {darkMode ? <Brightness7 /> : <Brightness4 />}
-            </IconButton>
-          </Tooltip>
         </Box>
       </Toolbar>
     </AppBar>

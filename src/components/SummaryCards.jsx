@@ -13,9 +13,7 @@ import {
   AttachMoney,
   TrendingDown,
   ShowChart,
-  AccountBalance,
 } from '@mui/icons-material';
-import { getChartData } from '../utils/api';
 import { formatCurrency } from '../utils/formatters';
 
 const SummaryCard = ({ title, value, icon, color, loading }) => {
@@ -66,80 +64,51 @@ const SummaryCard = ({ title, value, icon, color, loading }) => {
   );
 };
 
-const SummaryCards = ({ authenticated }) => {
-  const [loading, setLoading] = useState(true);
+const SummaryCards = ({ authenticated, days = 7, chartData }) => {
   const [summaryData, setSummaryData] = useState({
     totalFees: 0,
     totalFunding: 0,
     totalCost: 0,
-    netPnL: 0,
   });
+  
+  const loading = !chartData;
 
   useEffect(() => {
-    if (authenticated) {
-      loadSummaryData();
+    if (chartData) {
+      // Use the totals already calculated by the backend
+      setSummaryData({
+        totalFees: chartData.total_fees || 0,
+        totalFunding: chartData.total_funding || 0,
+        totalCost: chartData.total_cost || 0,
+      });
     }
-  }, [authenticated]);
-
-  const loadSummaryData = async () => {
-    try {
-      setLoading(true);
-      const response = await getChartData(90); // Get 90 days of data
-      const data = response.data;
-
-      // Check if we have valid data structure
-      if (data && data.fees && data.funding && Array.isArray(data.fees) && Array.isArray(data.funding)) {
-        // Calculate totals
-        const totalFees = data.fees.reduce((sum, val) => sum + val, 0);
-        const totalFunding = data.funding.reduce((sum, val) => sum + val, 0);
-        const totalCost = totalFees + totalFunding;
-
-        setSummaryData({
-          totalFees,
-          totalFunding,
-          totalCost,
-          netPnL: -totalCost, // Negative because these are costs
-        });
-      }
-    } catch (error) {
-      console.error('Error loading summary data:', error);
-      // Don't clear existing data on error
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [chartData]);
 
   const cards = [
     {
-      title: 'Total Fees (90d)',
+      title: `Total Fees (${days}d)`,
       value: formatCurrency(Math.abs(summaryData.totalFees)),
       icon: <AttachMoney />,
       color: 'primary',
     },
     {
-      title: 'Total Funding (90d)',
+      title: `Total Funding (${days}d)`,
       value: formatCurrency(Math.abs(summaryData.totalFunding)),
       icon: <TrendingDown />,
       color: 'secondary',
     },
     {
-      title: 'Total Cost (90d)',
+      title: `Total Cost (${days}d)`,
       value: formatCurrency(Math.abs(summaryData.totalCost)),
       icon: <ShowChart />,
       color: 'warning',
-    },
-    {
-      title: 'Net Impact (90d)',
-      value: formatCurrency(summaryData.netPnL),
-      icon: <AccountBalance />,
-      color: summaryData.netPnL >= 0 ? 'success' : 'error',
     },
   ];
 
   return (
     <Grid container spacing={3}>
       {cards.map((card, index) => (
-        <Grid item xs={12} sm={6} md={3} key={index}>
+        <Grid item xs={12} sm={6} md={4} key={index}>
           <SummaryCard
             title={card.title}
             value={card.value}

@@ -136,24 +136,51 @@ const PositionsCard = ({ onRefresh }) => {
     if (!hourlyFunding || hourlyFunding.length === 0) return null;
 
     return (
-      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 0.5, 
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 40,
+      }}>
         {hourlyFunding.map((value, index) => {
-          const height = Math.min(Math.abs(value) * 10, 20);
+          // Scale based on -$10 to +$10 range
+          const maxValue = 10; // $10
+          const normalizedValue = Math.max(-maxValue, Math.min(maxValue, value));
+          const percentage = Math.abs(normalizedValue) / maxValue; // 0 to 1
+          
+          // Calculate height (max 30px for full $10)
+          const height = Math.max(4, percentage * 30);
+          
+          // Simple red/green color based on positive/negative
           const color = value >= 0 ? theme.palette.success.main : theme.palette.error.main;
           
           return (
-            <Tooltip key={index} title={`Hour ${index + 1}: ${formatCurrency(value)}`}>
+            <Tooltip 
+              key={index} 
+              title={
+                <Box>
+                  <Typography variant="caption">Hour {index + 1}</Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatCurrency(value)}
+                  </Typography>
+                </Box>
+              }
+            >
               <Box
                 sx={{
-                  width: 8,
+                  width: 12,
                   height: `${height}px`,
                   backgroundColor: color,
-                  borderRadius: 0.5,
-                  opacity: 0.8,
-                  transition: 'all 0.3s',
+                  borderRadius: 6,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  opacity: 0.9,
                   '&:hover': {
+                    transform: 'scale(1.1) translateY(-2px)',
+                    boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
                     opacity: 1,
-                    transform: 'scaleY(1.2)',
                   },
                 }}
               />
@@ -165,7 +192,17 @@ const PositionsCard = ({ onRefresh }) => {
   };
 
   return (
-    <Card>
+    <Card 
+      sx={{ 
+        borderRadius: 3,
+        mx: { xs: 2, sm: 3, md: 4 },
+        boxShadow: theme.shadows[2],
+        '&:hover': {
+          boxShadow: theme.shadows[4],
+        },
+        transition: 'box-shadow 0.3s ease-in-out',
+      }}
+    >
       <CardHeader
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -222,7 +259,7 @@ const PositionsCard = ({ onRefresh }) => {
                   <TableCell align="right">Fees</TableCell>
                   <TableCell align="right">Net P&L</TableCell>
                   <TableCell align="center">Funding History (8h)</TableCell>
-                  <TableCell align="center">Funding Rates</TableCell>
+                  <TableCell align="center">Predicted Funding</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -295,17 +332,21 @@ const PositionsCard = ({ onRefresh }) => {
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Chip
-                          label={`Current: ${(position.fundingRateCurrent * 100).toFixed(4)}%`}
-                          size="small"
-                          variant="outlined"
-                        />
-                        <Chip
-                          label={`Predicted: ${(position.fundingRatePredicted * 100).toFixed(4)}%`}
-                          size="small"
-                          variant="outlined"
-                          color="info"
-                        />
+                        <Tooltip title="Current funding rate × position size">
+                          <Chip
+                            label={`Current: ${formatCurrency(Math.abs(position.size) * position.fundingRateCurrent)}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Tooltip>
+                        <Tooltip title="Predicted funding rate × position size">
+                          <Chip
+                            label={`Predicted: ${formatCurrency(Math.abs(position.size) * position.fundingRatePredicted)}`}
+                            size="small"
+                            variant="outlined"
+                            color="info"
+                          />
+                        </Tooltip>
                       </Box>
                     </TableCell>
                   </TableRow>
