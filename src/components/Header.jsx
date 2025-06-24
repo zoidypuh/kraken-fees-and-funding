@@ -27,12 +27,13 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick }) => {
   return (
     <AppBar
       position="fixed"
-      elevation={2}
+      elevation={3}
       sx={{
         backdropFilter: 'blur(8px)',
         backgroundColor: theme.palette.mode === 'dark'
-          ? 'rgba(18, 18, 18, 0.9)'
-          : 'rgba(255, 255, 255, 0.9)',
+          ? 'rgba(18, 18, 18, 0.95)'
+          : 'rgba(255, 255, 255, 0.98)',
+        borderBottom: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Toolbar sx={{ gap: 2 }}>

@@ -72,36 +72,42 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
       
       <Toolbar /> {/* Spacing for fixed header */}
       
-      <Container
-        maxWidth="xl"
+      <Box
         sx={{
           flex: 1,
-          py: { xs: 2, sm: 3, md: 4 },
-          px: { xs: 2, sm: 3 },
+          width: '100%',
+          overflow: 'hidden',
         }}
       >
         <Fade in timeout={800}>
-          <Grid container spacing={3}>
+          <Box sx={{ width: '100%' }}>
             {/* Positions Section - First */}
-            <Grid item xs={12}>
+            <Box sx={{ mb: 3 }}>
               <PositionsCard 
                 key={positionsKey}
                 onRefresh={refreshPositions}
               />
-            </Grid>
+            </Box>
 
             {/* Summary Cards - Second */}
-            <Grid item xs={12}>
+            <Box sx={{ 
+              mb: 3,
+              px: { xs: 2, sm: 3, md: 4 },
+              py: { xs: 2, sm: 3 },
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? theme.palette.grey[900] 
+                : theme.palette.grey[50]
+            }}>
               <SummaryCards authenticated={authenticated} />
-            </Grid>
+            </Box>
 
             {/* Chart Section - Third */}
-            <Grid item xs={12}>
+            <Box sx={{ mb: 3 }}>
               <ChartCard />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Fade>
-      </Container>
+      </Box>
 
       {/* Scroll to top button */}
       <Zoom in={showScrollTop}>

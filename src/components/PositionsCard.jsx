@@ -30,7 +30,7 @@ import {
 import { getPositionsDetailed } from '../utils/api';
 import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatters';
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
+const REFRESH_INTERVAL = 60000; // 60 seconds
 
 const PositionsCard = ({ onRefresh }) => {
   const theme = useTheme();
@@ -293,7 +293,7 @@ const PositionsCard = ({ onRefresh }) => {
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <AccessTime fontSize="small" color="action" />
             <Typography variant="caption" color="text.secondary">
-              Auto-refreshes every 30 seconds
+              Auto-refreshes every 60 seconds
             </Typography>
           </Box>
         )}
