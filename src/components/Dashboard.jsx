@@ -72,57 +72,36 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
       
       <Toolbar /> {/* Spacing for fixed header */}
       
-      <Box sx={{ flex: 1 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          flex: 1,
+          py: { xs: 2, sm: 3, md: 4 },
+          px: { xs: 2, sm: 3 },
+        }}
+      >
         <Fade in timeout={800}>
-          <Box>
-            {/* Full-width Chart Container with Summary Cards Overlay */}
-            <Box
-              sx={{
-                position: 'relative',
-                width: '100%',
-                backgroundColor: theme.palette.background.default,
-                overflow: 'hidden',
-              }}
-            >
-              {/* Chart takes full width */}
-              <Box sx={{ width: '100%' }}>
-                <ChartCard />
-              </Box>
-              
-              {/* Summary Cards Overlay */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  padding: { xs: 2, sm: 3, md: 4 },
-                  pointerEvents: 'none', // Allow chart interactions below
-                  '& > *': {
-                    pointerEvents: 'auto', // But allow card interactions
-                  },
-                }}
-              >
-                <SummaryCards authenticated={authenticated} />
-              </Box>
-            </Box>
-
-            {/* Positions Section - Still in Container */}
-            <Container
-              maxWidth="xl"
-              sx={{
-                py: { xs: 2, sm: 3, md: 4 },
-                px: { xs: 2, sm: 3 },
-              }}
-            >
+          <Grid container spacing={3}>
+            {/* Positions Section - First */}
+            <Grid item xs={12}>
               <PositionsCard 
                 key={positionsKey}
                 onRefresh={refreshPositions}
               />
-            </Container>
-          </Box>
+            </Grid>
+
+            {/* Summary Cards - Second */}
+            <Grid item xs={12}>
+              <SummaryCards authenticated={authenticated} />
+            </Grid>
+
+            {/* Chart Section - Third */}
+            <Grid item xs={12}>
+              <ChartCard />
+            </Grid>
+          </Grid>
         </Fade>
-      </Box>
+      </Container>
 
       {/* Scroll to top button */}
       <Zoom in={showScrollTop}>
