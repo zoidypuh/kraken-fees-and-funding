@@ -128,6 +128,10 @@ def _handle_api_response(data: Any, expected_field: str = None,
 def make_request(path: str, api_key: str, api_secret: str, 
                 query: dict = None) -> dict:
     """Make an authenticated request to Kraken Futures API."""
+    # Strip any whitespace from credentials
+    api_key = api_key.strip() if api_key else api_key
+    api_secret = api_secret.strip() if api_secret else api_secret
+    
     # Rate limiting
     _rate_limiter.wait_if_needed()
     

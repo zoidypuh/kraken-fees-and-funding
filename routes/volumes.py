@@ -26,6 +26,12 @@ def get_trading_volumes(api_key: str, api_secret: str):
         if days < 1 or days > 90:
             return jsonify({'error': 'Days must be between 1 and 90'}), 400
         
+        # Check if force refresh is requested
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        
+        if force_refresh:
+            unified_data_service.clear_cache(api_key)
+        
         logger.info(f"Fetching trading volumes for last {days} days")
         
         # Get data from unified service

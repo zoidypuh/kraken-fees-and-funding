@@ -75,56 +75,26 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewCh
             }}
             size="small"
             sx={{
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'rgba(0, 0, 0, 0.04)',
               borderRadius: 2,
             }}
           >
             <ToggleButton 
               value="positions" 
-              sx={{ 
-                px: 2,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.primary.contrastText,
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                  }
-                }
-              }}
+              sx={{ px: 2 }}
             >
               <TableChart sx={{ mr: 1 }} />
               Open Positions
             </ToggleButton>
             <ToggleButton 
               value="trading" 
-              sx={{ 
-                px: 2,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.primary.contrastText,
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                  }
-                }
-              }}
+              sx={{ px: 2 }}
             >
               <ShowChart sx={{ mr: 1 }} />
               Trading Cost Activity
             </ToggleButton>
             <ToggleButton 
               value="volume" 
-              sx={{ 
-                px: 2,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.primary.contrastText,
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                  }
-                }
-              }}
+              sx={{ px: 2 }}
             >
               <TrendingUp sx={{ mr: 1 }} />
               Trading Volume

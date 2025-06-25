@@ -21,10 +21,10 @@ import {
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  BarChart as BarChartIcon,
-  ShowChart as LineChartIcon,
-  Layers as LayersIcon,
-  Timeline as TimelineIcon,
+  AttachMoney as AttachMoneyIcon,
+  SwapVert as SwapVertIcon,
+  StackedBarChart as StackedBarChartIcon,
+  ShowChart as ShowChartIcon,
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -51,6 +51,7 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
   const [displayData, setDisplayData] = useState(null);
   const [chartMode, setChartMode] = useState('combined');
   const [cacheHit, setCacheHit] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
   
   const isLoadingRef = useRef(false);
   const lastLoadTime = useRef(0);
@@ -66,14 +67,15 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps for mount only
   
-  // Load when days change (but not on mount)
+  // Load when days change
   useEffect(() => {
-    if (!chartData) return; // Skip if no initial data yet
-    
     // Clear any pending timeout
     if (loadTimeoutRef.current) {
       clearTimeout(loadTimeoutRef.current);
     }
+    
+    // Reset rate limit for period changes
+    lastLoadTime.current = 0;
     
     // Debounce the load call
     loadTimeoutRef.current = setTimeout(() => {
@@ -94,16 +96,15 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
     }
   }, [chartData, chartMode]);
 
-  const loadChartData = useCallback(async () => {
+  const loadChartData = useCallback(async (forceRefresh = false) => {
     // Prevent concurrent requests
     if (isLoadingRef.current) {
       return;
     }
     
-    // Rate limit: minimum 5 seconds between requests
+    // Rate limit: minimum 5 seconds between requests (unless force refresh)
     const now = Date.now();
-    if (now - lastLoadTime.current < 5000) {
-      console.log('Skipping request - too soon after last request');
+    if (!forceRefresh && now - lastLoadTime.current < 5000) {
       return;
     }
     
@@ -115,9 +116,10 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
     const startTime = Date.now();
 
     try {
-      const response = await getChartData(days);
+      const response = await getChartData(days, forceRefresh);
       const data = response.data;
       setChartData(data);
+      setLastUpdate(new Date());
       
       // Pass data to parent
       if (onDataLoad) {
@@ -171,9 +173,8 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
   };
 
   const handleRefresh = useCallback(() => {
-    // Force refresh by clearing last load time
-    lastLoadTime.current = 0;
-    loadChartData();
+    // Force refresh with cache clear
+    loadChartData(true);
   }, [loadChartData]);
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -362,73 +363,70 @@ const ChartCard = ({ days = 7, onDaysChange, onDataLoad }) => {
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6">Trading Costs Analysis</Typography>
-            {cacheHit && (
-              <Chip
-                label="Cached"
-                size="small"
-                color="success"
-                variant="outlined"
-              />
-            )}
           </Box>
         }
         action={
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Period</InputLabel>
-              <Select
-                value={days}
-                label="Period"
-                onChange={(e) => onDaysChange && onDaysChange(e.target.value)}
-              >
-                <MenuItem value={7}>7 days</MenuItem>
-                <MenuItem value={14}>14 days</MenuItem>
-                <MenuItem value={30}>30 days</MenuItem>
-                <MenuItem value={60}>60 days</MenuItem>
-                <MenuItem value={90}>90 days</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <ButtonGroup size="small" variant="outlined">
-              <Tooltip title="Fees only">
-                <Button
-                  onClick={() => setChartMode('fees')}
-                  variant={chartMode === 'fees' ? 'contained' : 'outlined'}
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Period</InputLabel>
+                <Select
+                  value={days}
+                  label="Period"
+                  onChange={(e) => onDaysChange && onDaysChange(Number(e.target.value))}
                 >
-                  <BarChartIcon />
-                </Button>
-              </Tooltip>
-              <Tooltip title="Funding only">
-                <Button
-                  onClick={() => setChartMode('funding')}
-                  variant={chartMode === 'funding' ? 'contained' : 'outlined'}
-                >
-                  <LineChartIcon />
-                </Button>
-              </Tooltip>
-              <Tooltip title="Combined view">
-                <Button
-                  onClick={() => setChartMode('combined')}
-                  variant={chartMode === 'combined' ? 'contained' : 'outlined'}
-                >
-                  <LayersIcon />
-                </Button>
-              </Tooltip>
-              <Tooltip title="Cumulative view">
-                <Button
-                  onClick={() => setChartMode('cumulative')}
-                  variant={chartMode === 'cumulative' ? 'contained' : 'outlined'}
-                >
-                  <TimelineIcon />
-                </Button>
-              </Tooltip>
-            </ButtonGroup>
+                  <MenuItem value={7}>7 days</MenuItem>
+                  <MenuItem value={14}>14 days</MenuItem>
+                  <MenuItem value={30}>30 days</MenuItem>
+                </Select>
+              </FormControl>
+              
+              <ButtonGroup size="small" variant="outlined">
+                <Tooltip title="Fees only">
+                  <Button
+                    onClick={() => setChartMode('fees')}
+                    variant={chartMode === 'fees' ? 'contained' : 'outlined'}
+                  >
+                    <AttachMoneyIcon />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Funding only">
+                  <Button
+                    onClick={() => setChartMode('funding')}
+                    variant={chartMode === 'funding' ? 'contained' : 'outlined'}
+                  >
+                    <SwapVertIcon />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Combined view">
+                  <Button
+                    onClick={() => setChartMode('combined')}
+                    variant={chartMode === 'combined' ? 'contained' : 'outlined'}
+                  >
+                    <StackedBarChartIcon />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Cumulative view">
+                  <Button
+                    onClick={() => setChartMode('cumulative')}
+                    variant={chartMode === 'cumulative' ? 'contained' : 'outlined'}
+                  >
+                    <ShowChartIcon />
+                  </Button>
+                </Tooltip>
+              </ButtonGroup>
+            </Box>
 
-            <Tooltip title="Refresh data">
-              <IconButton onClick={handleRefresh} disabled={loading}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Updated: {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Loading...'}
+              </Typography>
+              <Tooltip title="Refresh data">
+                <IconButton onClick={handleRefresh} disabled={loading} size="small">
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         }
       />

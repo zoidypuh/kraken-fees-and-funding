@@ -8,10 +8,11 @@ import hashlib
 
 from kraken_client import (
     get_open_positions, batch_get_tickers, 
-    batch_get_position_accumulated_data, KrakenAPIError,
-    get_funding_rates, get_account_logs, ENTRY_TYPE_FUNDING_RATE_CHANGE,
-    get_fee_info
+    KrakenAPIError, get_funding_rates, 
+    ENTRY_TYPE_FUNDING_RATE_CHANGE,
+    get_fee_info, find_true_position_open_time
 )
+from unified_data_service import unified_data_service
 from .auth import require_api_credentials
 import time
 from datetime import datetime, timezone, timedelta
@@ -100,6 +101,79 @@ def format_position_data(kraken_pos: dict, current_price: float,
     }
 
 
+def get_position_accumulated_data_cached(api_key: str, api_secret: str, position: dict) -> dict:
+    """Calculate accumulated funding and fees using cached logs from unified service."""
+    try:
+        current_ts = int(time.time() * 1000)
+        symbol = position.get("symbol", "").upper()
+        position_size = abs(float(position.get("size", 0)))
+        
+        if not symbol or position_size == 0:
+            return {
+                "accumulated_funding": 0.0, 
+                "accumulated_fees": 0.0, 
+                "data_is_capped": False, 
+                "error": "Missing symbol or size"
+            }
+
+        # Find true open time (this still needs direct API call)
+        true_opened_ts = find_true_position_open_time(
+            api_key, api_secret, symbol, position_size, current_ts
+        )
+        
+        # Cap to 1 year if needed
+        ONE_YEAR_AGO_TS = current_ts - (365 * 24 * 60 * 60 * 1000)
+        fetch_from_ts = true_opened_ts
+        data_is_capped = False
+        
+        if true_opened_ts < ONE_YEAR_AGO_TS:
+            logger.warning(f"Position {symbol} is over a year old. Capping to 1 year.")
+            fetch_from_ts = ONE_YEAR_AGO_TS
+            data_is_capped = True
+
+        # Get cached logs from unified service
+        all_logs = unified_data_service.get_raw_logs(
+            api_key, api_secret, fetch_from_ts, current_ts
+        )
+        
+        accumulated_funding = 0.0
+        accumulated_fees = 0.0
+        
+        # Process logs
+        for log in all_logs:
+            log_contract = log.get("contract", "")
+            entry_type = log.get("info", "")
+            
+            if log_contract and symbol in log_contract.upper():
+                if entry_type == ENTRY_TYPE_FUNDING_RATE_CHANGE:
+                    realized_funding = log.get('realized_funding')
+                    if realized_funding is not None:
+                        accumulated_funding += float(realized_funding)
+                        
+                elif entry_type == "futures trade":
+                    fee_value = log.get("fee")
+                    if fee_value is not None:
+                        accumulated_fees += abs(float(fee_value))
+        
+        logger.info(f"Position {symbol}: funding=${accumulated_funding:.2f}, fees=${accumulated_fees:.2f} (from cache)")
+        
+        return {
+            "accumulated_funding": round(accumulated_funding, 2),
+            "accumulated_fees": round(accumulated_fees, 2),
+            "data_is_capped": data_is_capped,
+            "true_opened_date_utc": datetime.fromtimestamp(true_opened_ts/1000, tz=timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating accumulated data for {position.get('symbol')}: {str(e)}")
+        return {
+            "accumulated_funding": 0.0,
+            "accumulated_fees": 0.0,
+            "data_is_capped": False,
+            "error": str(e)
+        }
+
+
 def get_hourly_funding(api_key: str, api_secret: str, position: dict) -> dict:
     """Get hourly funding payments for the last 8 hours."""
     try:
@@ -109,8 +183,8 @@ def get_hourly_funding(api_key: str, api_secret: str, position: dict) -> dict:
         
         logger.debug(f"Fetching hourly funding for {symbol}")
         
-        # Fetch funding logs for the last 8 hours
-        funding_logs = get_account_logs(
+        # Use cached logs from unified service
+        funding_logs = unified_data_service.get_raw_logs(
             api_key, api_secret, eight_hours_ago, current_ts,
             entry_type=ENTRY_TYPE_FUNDING_RATE_CHANGE
         )
@@ -204,24 +278,36 @@ POSITIONS_CACHE_TTL = 30  # 30 seconds
 @require_api_credentials
 def get_positions_detailed(api_key: str, api_secret: str):
     """Get positions with current prices and P&L calculations."""
+    # Check if force refresh is requested
+    force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+    
     # Simple caching logic
     cache_key = f"positions_{hashlib.md5(api_key.encode()).hexdigest()}"
     
-    # Check cache
-    if cache_key in _positions_cache:
+    # Clear cache if force refresh
+    if force_refresh:
+        logger.info("Force refresh requested, clearing positions cache")
+        if cache_key in _positions_cache:
+            del _positions_cache[cache_key]
+        if cache_key in _positions_cache_time:
+            del _positions_cache_time[cache_key]
+    
+    # Check cache (skip if force refresh)
+    if not force_refresh and cache_key in _positions_cache:
         cached_time = _positions_cache_time.get(cache_key, 0)
         if time.time() - cached_time < POSITIONS_CACHE_TTL:
             logger.info("Returning cached positions data")
             return jsonify(_positions_cache[cache_key])
     
-    # Rate limit check - prevent too frequent requests
-    last_request_time = _positions_cache_time.get(cache_key, 0)
-    if time.time() - last_request_time < 5:  # Minimum 5 seconds between requests
-        logger.warning("Request too frequent, returning cached or empty data")
-        if cache_key in _positions_cache:
-            return jsonify(_positions_cache[cache_key])
-        else:
-            return jsonify([])
+    # Rate limit check - prevent too frequent requests (skip if force refresh)
+    if not force_refresh:
+        last_request_time = _positions_cache_time.get(cache_key, 0)
+        if time.time() - last_request_time < 5:  # Minimum 5 seconds between requests
+            logger.warning("Request too frequent, returning cached or empty data")
+            if cache_key in _positions_cache:
+                return jsonify(_positions_cache[cache_key])
+            else:
+                return jsonify([])
     
     # Update last request time
     _positions_cache_time[cache_key] = time.time()
@@ -236,8 +322,17 @@ def get_positions_detailed(api_key: str, api_secret: str):
         symbols = [pos['symbol'] for pos in positions]
         tickers = batch_get_tickers(api_key, api_secret, symbols)
         
-        # Get accumulated data (funding & fees) - using optimized version
-        position_data = batch_get_position_accumulated_data(api_key, api_secret, positions)
+        # Pre-fetch data to populate cache (30 days should cover most positions)
+        # This single call will cache all logs for reuse
+        unified_data_service.get_processed_data(api_key, api_secret, days=30)
+        
+        # Get accumulated data using cached logs
+        position_data = []
+        for pos in positions:
+            acc_data = get_position_accumulated_data_cached(api_key, api_secret, pos)
+            acc_data['symbol'] = pos['symbol']
+            acc_data['size'] = pos['size']
+            position_data.append(acc_data)
         
         # Get fee info to get the maker fee rate
         fee_info = get_fee_info(api_key, api_secret)

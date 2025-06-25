@@ -37,12 +37,12 @@ const VolumeCard = () => {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  const loadVolumes = async () => {
+  const loadVolumes = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await getTradingVolumes(30);
+      const response = await getTradingVolumes(30, forceRefresh);
       const data = response.data;
       
       if (data && data.data) {
@@ -63,7 +63,8 @@ const VolumeCard = () => {
   }, []);
 
   const handleRefresh = () => {
-    loadVolumes();
+    // Force refresh with cache clear
+    loadVolumes(true);
   };
 
   const getRowColor = (volume) => {
@@ -104,13 +105,11 @@ const VolumeCard = () => {
         }
         action={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {lastUpdate && (
-              <Typography variant="caption" color="text.secondary">
-                Updated: {lastUpdate.toLocaleTimeString()}
-              </Typography>
-            )}
+            <Typography variant="body2" color="text.secondary">
+              Updated: {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Loading...'}
+            </Typography>
             <Tooltip title="Refresh volumes">
-              <IconButton onClick={handleRefresh} disabled={loading}>
+              <IconButton onClick={handleRefresh} disabled={loading} size="small">
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
@@ -145,8 +144,8 @@ const VolumeCard = () => {
               </TableHead>
               <TableBody>
                 {volumes.map((item) => {
-                  const maxVolume = Math.max(...volumes.map(v => v.volume));
-                  const percentage = maxVolume > 0 ? (item.volume / maxVolume) * 100 : 0;
+                  // Calculate percentage based on total volume sum instead of max daily volume
+                  const percentage = totalVolume > 0 ? (item.volume / totalVolume) * 100 : 0;
                   
                   return (
                     <TableRow
@@ -172,7 +171,7 @@ const VolumeCard = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Box
                             sx={{
-                              width: `${percentage}%`,
+                              width: `${Math.max(percentage * 3, 2)}%`, // Scale by 3x for better visibility, min 2%
                               minWidth: 4,
                               height: 20,
                               backgroundColor: theme.palette.primary.main,
@@ -181,7 +180,7 @@ const VolumeCard = () => {
                             }}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {percentage.toFixed(0)}%
+                            {percentage.toFixed(1)}%
                           </Typography>
                         </Box>
                       </TableCell>

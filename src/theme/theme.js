@@ -67,6 +67,91 @@ const theme = createTheme({
           textTransform: 'none',
           fontWeight: 500,
         },
+        outlined: {
+          borderColor: 'rgba(0, 0, 0, 0.23)',
+          color: 'rgba(0, 0, 0, 0.7)',
+          '&:hover': {
+            borderColor: 'rgba(0, 0, 0, 0.4)',
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(0, 0, 0, 0.6)',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.08)',
+          },
+          '&.Mui-disabled': {
+            color: 'rgba(0, 0, 0, 0.26)',
+          },
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(0, 0, 0, 0.6)',
+          borderColor: 'rgba(0, 0, 0, 0.12)',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.08)',
+          },
+          '&.Mui-selected': {
+            backgroundColor: '#2196f3',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: '#1976d2',
+            },
+          },
+        },
+      },
+    },
+    MuiToggleButtonGroup: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        outlined: {
+          borderColor: 'rgba(0, 0, 0, 0.23)',
+          '&.MuiChip-colorDefault': {
+            color: 'rgba(0, 0, 0, 0.7)',
+          },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        outlined: {
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(0, 0, 0, 0.23)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(0, 0, 0, 0.4)',
+          },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: {
+          borderColor: 'rgba(0, 0, 0, 0.23)',
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(0, 0, 0, 0.6)',
+          '&.Mui-focused': {
+            color: '#2196f3',
+          },
+        },
       },
     },
     MuiCard: {

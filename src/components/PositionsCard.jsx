@@ -26,11 +26,13 @@ import {
   TrendingDown,
   AccessTime,
   Warning,
+  Cached as CachedIcon,
 } from '@mui/icons-material';
 import { getPositionsDetailed } from '../utils/api';
 import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatters';
+import { positionsCache, formatCacheAge } from '../utils/cache';
 
-const REFRESH_INTERVAL = 120000; // 120 seconds (2 minutes)
+const REFRESH_INTERVAL = 30000; // 30 seconds
 
 const PositionsCard = ({ onRefresh }) => {
   const theme = useTheme();
@@ -38,23 +40,30 @@ const PositionsCard = ({ onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [cacheInfo, setCacheInfo] = useState(null);
+  const [isLoadingFresh, setIsLoadingFresh] = useState(false);
   const isLoadingRef = useRef(false);
+  const [displayTime, setDisplayTime] = useState(null);
 
-  const loadPositions = useCallback(async () => {
+  const loadPositions = useCallback(async (showLoadingIndicator = true) => {
     // Prevent concurrent requests
     if (isLoadingRef.current) {
-      console.log('Skipping positions load - already loading');
       return;
     }
     
     try {
       isLoadingRef.current = true;
+      if (showLoadingIndicator) {
+        setIsLoadingFresh(true);
+      }
       setError(null);
       
       // Add small delay to debounce multiple calls
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const response = await getPositionsDetailed();
+      // Check if this is a force refresh (manual refresh button click)
+      const isForceRefresh = showLoadingIndicator && !cacheInfo;
+      const response = await getPositionsDetailed(isForceRefresh);
       
       // Only update positions if we got valid data
       if (response.data && Array.isArray(response.data)) {
@@ -65,7 +74,13 @@ const PositionsCard = ({ onRefresh }) => {
           }
           return response.data;
         });
-        setLastUpdate(new Date());
+        const now = new Date();
+        setLastUpdate(now);
+        setDisplayTime(now);
+        setCacheInfo(null); // Clear cache info when fresh data is loaded
+        
+        // Cache the new data
+        positionsCache.set(response.data);
       }
     } catch (error) {
       console.error('Error loading positions:', error);
@@ -79,6 +94,7 @@ const PositionsCard = ({ onRefresh }) => {
       }
     } finally {
       setLoading(false);
+      setIsLoadingFresh(false);
       isLoadingRef.current = false;
     }
   }, []);
@@ -87,12 +103,32 @@ const PositionsCard = ({ onRefresh }) => {
     let interval;
     let mounted = true;
     
-    // Initial load with small delay to prevent multiple simultaneous calls
+    // Initial load strategy: show cached data immediately, then load fresh
     const loadInitial = async () => {
+      // First, try to load from cache
+      const cached = positionsCache.get();
+      if (cached && cached.data && cached.data.length > 0) {
+        setPositions(cached.data);
+        setCacheInfo({
+          isStale: cached.isStale,
+          age: cached.age,
+          timestamp: Date.now() - cached.age
+        });
+        // Set display time to when cache was saved
+        setDisplayTime(new Date(Date.now() - cached.age));
+        setLoading(false); // Don't show initial loading if we have cached data
+        
+        // If cache is fresh enough (< 30 seconds), don't immediately load new data
+        if (!cached.isStale && cached.age < 30000) {
+          return;
+        }
+      }
+      
+      // Load fresh data (with loading indicator only if no cached data)
       if (mounted) {
         await new Promise(resolve => setTimeout(resolve, 500));
         if (mounted) {
-          loadPositions();
+          loadPositions(!cached || cached.data.length === 0);
         }
       }
     };
@@ -104,7 +140,8 @@ const PositionsCard = ({ onRefresh }) => {
       if (mounted) {
         interval = setInterval(() => {
           if (mounted) {
-            loadPositions();
+            // Auto-refresh: don't show loading indicator and don't force refresh
+            loadPositions(false);
           }
         }, REFRESH_INTERVAL);
       }
@@ -118,8 +155,37 @@ const PositionsCard = ({ onRefresh }) => {
   }, []); // Remove loadPositions dependency to avoid recreating interval
 
   const handleRefresh = async () => {
-    setLoading(true);
-    await loadPositions();
+    try {
+      // Clear local cache to force fresh data
+      positionsCache.clear();
+      setCacheInfo(null); // Clear cache info immediately
+      setIsLoadingFresh(true); // Set loading state for refresh button
+      setError(null);
+      
+      // Force fresh data from server by passing true as force refresh
+      // This will bypass both local and server-side caches
+      const response = await getPositionsDetailed(true);
+      
+      if (response.data && Array.isArray(response.data)) {
+        setPositions(response.data);
+        const now = new Date();
+        setLastUpdate(now);
+        setDisplayTime(now);
+        
+        // Cache the new data
+        positionsCache.set(response.data);
+      }
+    } catch (error) {
+      console.error('Error refreshing positions:', error);
+      if (error.response?.status === 429) {
+        setError('Rate limit exceeded. Please wait a moment.');
+      } else {
+        setError('Failed to refresh positions');
+      }
+    } finally {
+      setIsLoadingFresh(false);
+    }
+    
     if (onRefresh) onRefresh();
   };
 
@@ -219,13 +285,15 @@ const PositionsCard = ({ onRefresh }) => {
         }
         action={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {lastUpdate && (
-              <Typography variant="caption" color="text.secondary">
-                Updated: {lastUpdate.toLocaleTimeString()}
-              </Typography>
-            )}
-            <Tooltip title="Refresh positions">
-              <IconButton onClick={handleRefresh} disabled={loading}>
+            <Typography variant="body2" color="text.secondary">
+              Updated: {displayTime ? displayTime.toLocaleTimeString() : 'Loading...'}
+            </Typography>
+            <Tooltip title={isLoadingFresh ? "Loading fresh data..." : "Refresh positions"}>
+              <IconButton 
+                onClick={handleRefresh} 
+                disabled={loading || isLoadingFresh}
+                size="small"
+              >
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
@@ -233,7 +301,7 @@ const PositionsCard = ({ onRefresh }) => {
         }
       />
       
-      {loading && <LinearProgress />}
+      {(loading || isLoadingFresh) && <LinearProgress />}
       
       <CardContent>
         {error ? (
@@ -360,7 +428,7 @@ const PositionsCard = ({ onRefresh }) => {
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <AccessTime fontSize="small" color="action" />
             <Typography variant="caption" color="text.secondary">
-              Auto-refreshes every 2 minutes
+              Auto-refreshes every 30 seconds
             </Typography>
           </Box>
         )}

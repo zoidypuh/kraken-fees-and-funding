@@ -10,6 +10,9 @@ import {
   Fade,
   Fab,
   Zoom,
+  CircularProgress,
+  Typography,
+  Backdrop,
 } from '@mui/material';
 import { KeyboardArrowUp } from '@mui/icons-material';
 import Header from './Header';
@@ -28,11 +31,13 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
   const [chartDays, setChartDays] = useState(7);
   const [chartData, setChartData] = useState(null);
   const [view, setView] = useState('positions'); // Default to positions view
+  const [isPreloading, setIsPreloading] = useState(false);
 
   useEffect(() => {
     if (authenticated) {
       // Preload data when authenticated
       const preloadAndInitialize = async () => {
+        setIsPreloading(true);
         try {
           // Preload 30 days of account data
           const response = await fetch('/api/analytics/preload', {
@@ -47,6 +52,8 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
           }
         } catch (error) {
           console.error('Error preloading data:', error);
+        } finally {
+          setIsPreloading(false);
         }
         
         // Load fee info regardless
