@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -21,12 +21,90 @@ import {
   TrendingDown,
   ShowChart,
   TableChart,
+  CurrencyBitcoin,
 } from '@mui/icons-material';
-import { formatPercentage } from '../utils/formatters';
+import { formatPercentage, formatCurrency } from '../utils/formatters';
+import { getTicker } from '../utils/api';
 
 const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewChange }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [btcPrice, setBtcPrice] = useState(null);
+  const [btcFeeCalculation, setBtcFeeCalculation] = useState(null);
+
+  useEffect(() => {
+    const fetchBtcPrice = async () => {
+      try {
+        const response = await getTicker('PF_XBTUSD');
+        console.log('Ticker response:', response.data);
+        
+        if (response.data && response.data.markPrice) {
+          const price = parseFloat(response.data.markPrice);
+          
+          if (isNaN(price)) {
+            console.error('Invalid BTC price:', response.data.markPrice);
+            return;
+          }
+          
+          setBtcPrice(price);
+          
+          // Calculate fees if we have fee info
+          if (feeInfo && feeInfo.maker_fee != null) {
+            const btcAmount = 10;
+            const priceIncrease = 100;
+            
+            const buyPrice = price;
+            const sellPrice = price + priceIncrease;
+            
+            const buyOrderValue = btcAmount * buyPrice;
+            const sellOrderValue = btcAmount * sellPrice;
+            
+            // Ensure maker_fee is a number
+            const makerFeeRate = parseFloat(feeInfo.maker_fee) || 0;
+            
+            // Debug logging
+            console.log('BTC Fee Calculation:', {
+              price,
+              makerFeeRate,
+              buyOrderValue,
+              sellOrderValue,
+              feeInfo
+            });
+            
+            // Calculate fees
+            const buyFee = buyOrderValue * makerFeeRate;
+            const sellFee = sellOrderValue * makerFeeRate;
+            const totalFees = buyFee + sellFee;
+            
+            // Calculate profit
+            const grossProfit = (sellPrice - buyPrice) * btcAmount; // Should be $1000
+            const netProfit = grossProfit - totalFees;
+            
+            setBtcFeeCalculation({
+              buyFee,
+              sellFee,
+              totalFees,
+              buyPrice,
+              sellPrice,
+              grossProfit,
+              netProfit
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching BTC price:', error);
+      }
+    };
+
+    // Fetch on mount and when fee info changes
+    if (feeInfo) {
+      fetchBtcPrice();
+      
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchBtcPrice, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [feeInfo]);
 
   return (
     <AppBar
@@ -41,27 +119,12 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewCh
       }}
     >
       <Toolbar sx={{ gap: 2 }}>
-        {/* Logo and Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar
-            src="/image.png"
-            alt="Kraken"
-            sx={{ width: 36, height: 36 }}
-          />
-          <Typography
-            variant="h6"
-            component="h1"
-            sx={{
-              fontWeight: 600,
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              display: { xs: 'none', sm: 'block' },
-            }}
-          >
-            Kraken Dashboard
-          </Typography>
-        </Box>
+        {/* Logo only */}
+        <Avatar
+          src="/image.png"
+          alt="Kraken"
+          sx={{ width: 36, height: 36 }}
+        />
 
         {/* View Toggle - Centered */}
         <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
@@ -116,6 +179,46 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewCh
                   sx={{ fontFamily: 'monospace' }}
                 />
               </Tooltip>
+              {feeInfo && !btcFeeCalculation && (
+                <Chip
+                  icon={<CurrencyBitcoin fontSize="small" />}
+                  label="Loading BTC..."
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontFamily: 'monospace' }}
+                />
+              )}
+              {btcFeeCalculation && (
+                <Tooltip title={
+                  <Box>
+                    <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>10 BTC Trade Scenario:</div>
+                    <div>Buy at {formatCurrency(btcFeeCalculation.buyPrice)}: Fee = {formatCurrency(btcFeeCalculation.buyFee)}</div>
+                    <div>Sell at {formatCurrency(btcFeeCalculation.sellPrice)}: Fee = {formatCurrency(btcFeeCalculation.sellFee)}</div>
+                    <div style={{ marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: '4px' }}>
+                      Gross Profit: {formatCurrency(btcFeeCalculation.grossProfit)}
+                    </div>
+                    <div>Total Fees: {formatCurrency(btcFeeCalculation.totalFees)}</div>
+                    <div style={{ fontWeight: 'bold', color: btcFeeCalculation.netProfit > 0 ? '#4caf50' : '#f44336' }}>
+                      Net Profit: {formatCurrency(btcFeeCalculation.netProfit)}
+                    </div>
+                  </Box>
+                }>
+                  <Chip
+                    icon={<CurrencyBitcoin fontSize="small" />}
+                    label={`10 BTC +$100: Net ${formatCurrency(btcFeeCalculation.netProfit)}`}
+                    size="small"
+                    variant="outlined"
+                    color={btcFeeCalculation.netProfit > 0 ? "success" : "error"}
+                    sx={{ 
+                      fontFamily: 'monospace',
+                      borderWidth: '2px',
+                      '&:hover': {
+                        borderWidth: '2px',
+                      }
+                    }}
+                  />
+                </Tooltip>
+              )}
               <Tooltip title="Maker fee rate">
                 <Chip
                   label={`Maker: ${feeInfo.maker_fee_percentage}`}
