@@ -318,6 +318,7 @@ const PositionsCard = ({ onRefresh }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Symbol</TableCell>
+                  <TableCell>Position Opened</TableCell>
                   <TableCell align="right">Side</TableCell>
                   <TableCell align="right">Size</TableCell>
                   <TableCell align="right">Entry Price</TableCell>
@@ -352,6 +353,17 @@ const PositionsCard = ({ onRefresh }) => {
                           </Tooltip>
                         )}
                       </Box>
+                    </TableCell>
+                    <TableCell>
+                      {position.openedDate ? (
+                        <Typography variant="body2">
+                          {formatDateTime(position.openedDate)}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell align="right">
                       <Chip
