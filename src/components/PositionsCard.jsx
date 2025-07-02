@@ -29,7 +29,7 @@ import {
   Cached as CachedIcon,
 } from '@mui/icons-material';
 import { getPositionsDetailed } from '../utils/api';
-import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatDateTime, formatDate } from '../utils/formatters';
 import { positionsCache, formatCacheAge } from '../utils/cache';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
@@ -318,7 +318,8 @@ const PositionsCard = ({ onRefresh }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Symbol</TableCell>
-                  <TableCell>Position Opened</TableCell>
+                  <TableCell>Opened</TableCell>
+                  <TableCell align="right">Days Open</TableCell>
                   <TableCell align="right">Side</TableCell>
                   <TableCell align="right">Size</TableCell>
                   <TableCell align="right">Entry Price</TableCell>
@@ -332,105 +333,127 @@ const PositionsCard = ({ onRefresh }) => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {positions.map((position) => (
-                  <TableRow
-                    key={position.symbol}
-                    sx={{
-                      backgroundColor: getRowColor(position),
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.action.hover, 0.08),
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {position.symbol}
-                        </Typography>
-                        {position.dataIsCapped && (
-                          <Tooltip title="Historical data is limited">
-                            <Warning fontSize="small" color="warning" />
-                          </Tooltip>
+                {positions.map((position) => {
+                  // Calculate days open
+                  const daysOpen = position.openedDate 
+                    ? Math.ceil((Date.now() - new Date(position.openedDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  
+                  return (
+                    <TableRow
+                      key={position.symbol}
+                      sx={{
+                        backgroundColor: getRowColor(position),
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            {position.symbol}
+                          </Typography>
+                          {position.dataIsCapped && (
+                            <Tooltip title="Historical data is limited">
+                              <Warning fontSize="small" color="warning" />
+                            </Tooltip>
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {position.openedDate ? (
+                          <Typography variant="body2">
+                            {formatDate(position.openedDate)}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
                         )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {position.openedDate ? (
-                        <Typography variant="body2">
-                          {formatDateTime(position.openedDate)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {daysOpen ? (
+                          <Typography 
+                            variant="body2" 
+                            fontWeight="medium"
+                            color={daysOpen > 7 ? 'warning.main' : 'text.primary'}
+                          >
+                            {daysOpen}d
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip
+                          label={position.side.toUpperCase()}
+                          size="small"
+                          color={position.side === 'long' ? 'success' : 'error'}
+                          icon={position.side === 'long' ? <TrendingUp /> : <TrendingDown />}
+                        />
+                      </TableCell>
+                      <TableCell align="right">{formatNumber(Math.abs(position.size))}</TableCell>
+                      <TableCell align="right">{formatCurrency(position.avgPrice)}</TableCell>
+                      <TableCell align="right">{formatCurrency(position.currentPrice)}</TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color={position.unrealizedPnl >= 0 ? 'success.main' : 'error.main'}
+                          fontWeight="medium"
+                        >
+                          {formatCurrency(position.unrealizedPnl)}
                         </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color={position.accumulatedFunding >= 0 ? 'success.main' : 'error.main'}
+                        >
+                          {formatCurrency(position.accumulatedFunding)}
                         </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Chip
-                        label={position.side.toUpperCase()}
-                        size="small"
-                        color={position.side === 'long' ? 'success' : 'error'}
-                        icon={position.side === 'long' ? <TrendingUp /> : <TrendingDown />}
-                      />
-                    </TableCell>
-                    <TableCell align="right">{formatNumber(Math.abs(position.size))}</TableCell>
-                    <TableCell align="right">{formatCurrency(position.avgPrice)}</TableCell>
-                    <TableCell align="right">{formatCurrency(position.currentPrice)}</TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        color={position.unrealizedPnl >= 0 ? 'success.main' : 'error.main'}
-                        fontWeight="medium"
-                      >
-                        {formatCurrency(position.unrealizedPnl)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        color={position.accumulatedFunding >= 0 ? 'success.main' : 'error.main'}
-                      >
-                        {formatCurrency(position.accumulatedFunding)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" color="error.main">
-                        {formatCurrency(-Math.abs(position.accumulatedFees))}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        color={position.netUnrealizedPnl >= 0 ? 'success.main' : 'error.main'}
-                        fontWeight="bold"
-                      >
-                        {formatCurrency(position.netUnrealizedPnl)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      {renderFundingBars(position.hourlyFunding)}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Tooltip title="Current funding rate × position size">
-                          <Chip
-                            label={`Current: ${formatCurrency(Math.abs(position.size) * position.fundingRateCurrent)}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Tooltip>
-                        <Tooltip title="Predicted funding rate × position size">
-                          <Chip
-                            label={`Predicted: ${formatCurrency(Math.abs(position.size) * position.fundingRatePredicted)}`}
-                            size="small"
-                            variant="outlined"
-                            color="info"
-                          />
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color="error.main">
+                          {formatCurrency(-Math.abs(position.accumulatedFees))}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color={position.netUnrealizedPnl >= 0 ? 'success.main' : 'error.main'}
+                          fontWeight="bold"
+                        >
+                          {formatCurrency(position.netUnrealizedPnl)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {renderFundingBars(position.hourlyFunding)}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Tooltip title="Current funding rate × position size">
+                            <Chip
+                              label={`Current: ${formatCurrency(Math.abs(position.size) * position.fundingRateCurrent)}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Tooltip>
+                          <Tooltip title="Predicted funding rate × position size">
+                            <Chip
+                              label={`Predicted: ${formatCurrency(Math.abs(position.size) * position.fundingRatePredicted)}`}
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                            />
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
