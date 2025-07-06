@@ -52,6 +52,9 @@ export const getPositionsDetailed = (forceRefresh = false) =>
     params: forceRefresh ? { force_refresh: true } : {} 
   });
 
+export const getClosedPositions = (days = 30) => 
+  api.get('/positions/closed', { params: { days } });
+
 // Market data endpoints
 export const getTicker = (symbol) => api.get(`/market/ticker/${symbol}`);
 

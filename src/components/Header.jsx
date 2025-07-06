@@ -146,7 +146,7 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewCh
               sx={{ px: 2 }}
             >
               <TableChart sx={{ mr: 1 }} />
-              Open Positions
+              Positions
             </ToggleButton>
             <ToggleButton 
               value="trading" 

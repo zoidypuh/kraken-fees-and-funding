@@ -19,6 +19,8 @@ import {
   Paper,
   useTheme,
   alpha,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -28,7 +30,7 @@ import {
   Warning,
   Cached as CachedIcon,
 } from '@mui/icons-material';
-import { getPositionsDetailed } from '../utils/api';
+import { getPositionsDetailed, getClosedPositions } from '../utils/api';
 import { formatCurrency, formatNumber, formatDateTime, formatDate } from '../utils/formatters';
 import { positionsCache, formatCacheAge } from '../utils/cache';
 
@@ -44,6 +46,10 @@ const PositionsCard = ({ onRefresh }) => {
   const [isLoadingFresh, setIsLoadingFresh] = useState(false);
   const isLoadingRef = useRef(false);
   const [displayTime, setDisplayTime] = useState(null);
+  const [closedPositionsCount, setClosedPositionsCount] = useState('3');
+  const [closedPositions, setClosedPositions] = useState([]);
+  const [closedPositionsLoading, setClosedPositionsLoading] = useState(false);
+  const [closedPositionsError, setClosedPositionsError] = useState(null);
 
   const loadPositions = useCallback(async (showLoadingIndicator = true) => {
     // Prevent concurrent requests
@@ -154,6 +160,11 @@ const PositionsCard = ({ onRefresh }) => {
     };
   }, []); // Remove loadPositions dependency to avoid recreating interval
 
+  // Load closed positions on mount
+  useEffect(() => {
+    loadClosedPositions();
+  }, [loadClosedPositions]);
+
   const handleRefresh = async () => {
     try {
       // Clear local cache to force fresh data
@@ -188,6 +199,24 @@ const PositionsCard = ({ onRefresh }) => {
     
     if (onRefresh) onRefresh();
   };
+
+  const loadClosedPositions = useCallback(async () => {
+    try {
+      setClosedPositionsLoading(true);
+      setClosedPositionsError(null);
+      
+      const response = await getClosedPositions(30); // Get last 30 days of closed positions
+      
+      if (response.data && Array.isArray(response.data)) {
+        setClosedPositions(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading closed positions:', error);
+      setClosedPositionsError('Failed to load closed positions');
+    } finally {
+      setClosedPositionsLoading(false);
+    }
+  }, []);
 
   const getRowColor = (position) => {
     if (position.netUnrealizedPnl > 0) {
@@ -258,17 +287,19 @@ const PositionsCard = ({ onRefresh }) => {
   };
 
   return (
-    <Card 
-      sx={{ 
-        borderRadius: 3,
-        mx: { xs: 2, sm: 3, md: 4 },
-        boxShadow: theme.shadows[2],
-        '&:hover': {
-          boxShadow: theme.shadows[4],
-        },
-        transition: 'box-shadow 0.3s ease-in-out',
-      }}
-    >
+    <Box sx={{ mx: { xs: 2, sm: 3, md: 4 } }}>
+      {/* Open Positions Card */}
+      <Card 
+        sx={{ 
+          borderRadius: 3,
+          mb: 3,
+          boxShadow: theme.shadows[2],
+          '&:hover': {
+            boxShadow: theme.shadows[4],
+          },
+          transition: 'box-shadow 0.3s ease-in-out',
+        }}
+      >
       <CardHeader
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -469,6 +500,153 @@ const PositionsCard = ({ onRefresh }) => {
         )}
       </CardContent>
     </Card>
+
+    {/* Closed Positions Card */}
+    <Card 
+      sx={{ 
+        borderRadius: 3,
+        boxShadow: theme.shadows[2],
+        '&:hover': {
+          boxShadow: theme.shadows[4],
+        },
+        transition: 'box-shadow 0.3s ease-in-out',
+      }}
+    >
+      <CardHeader
+        title={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h6">Closed Positions</Typography>
+            <ToggleButtonGroup
+              value={closedPositionsCount}
+              exclusive
+              onChange={(event, newValue) => {
+                if (newValue !== null) {
+                  setClosedPositionsCount(newValue);
+                }
+              }}
+              size="small"
+              sx={{ ml: 'auto' }}
+            >
+              <ToggleButton value="3">Last 3</ToggleButton>
+              <ToggleButton value="5">Last 5</ToggleButton>
+              <ToggleButton value="10">Last 10</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        }
+      />
+      
+      {closedPositionsLoading && <LinearProgress />}
+      
+      <CardContent>
+        {closedPositionsError ? (
+          <Alert severity="error">{closedPositionsError}</Alert>
+        ) : closedPositions.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography variant="body1" color="text.secondary">
+              No closed positions found in the last 30 days
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Symbol</TableCell>
+                  <TableCell>Opened</TableCell>
+                  <TableCell>Closed</TableCell>
+                  <TableCell align="right">Duration</TableCell>
+                  <TableCell align="right">Side</TableCell>
+                  <TableCell align="right">Size</TableCell>
+                  <TableCell align="right">Entry Price</TableCell>
+                  <TableCell align="right">Exit Price</TableCell>
+                  <TableCell align="right">Realized P&L</TableCell>
+                  <TableCell align="right">Funding</TableCell>
+                  <TableCell align="right">Fees</TableCell>
+                  <TableCell align="right">Net P&L</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {closedPositions.slice(0, parseInt(closedPositionsCount)).map((position) => (
+                  <TableRow
+                    key={`${position.symbol}-${position.closedDate}`}
+                    sx={{
+                      backgroundColor: getRowColor(position),
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                      },
+                    }}
+                  >
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {position.symbol}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {formatDate(position.openedDate)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {formatDate(position.closedDate)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2">
+                        {position.duration}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={position.side.toUpperCase()}
+                        size="small"
+                        color={position.side === 'long' ? 'success' : 'error'}
+                        icon={position.side === 'long' ? <TrendingUp /> : <TrendingDown />}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{formatNumber(Math.abs(position.size))}</TableCell>
+                    <TableCell align="right">{formatCurrency(position.entryPrice)}</TableCell>
+                    <TableCell align="right">{formatCurrency(position.exitPrice)}</TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        color={position.realizedPnl >= 0 ? 'success.main' : 'error.main'}
+                        fontWeight="medium"
+                      >
+                        {formatCurrency(position.realizedPnl)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        color={position.totalFunding >= 0 ? 'success.main' : 'error.main'}
+                      >
+                        {formatCurrency(position.totalFunding)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" color="error.main">
+                        {formatCurrency(-Math.abs(position.totalFees))}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        color={position.netPnl >= 0 ? 'success.main' : 'error.main'}
+                        fontWeight="bold"
+                      >
+                        {formatCurrency(position.netPnl)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </CardContent>
+    </Card>
+    </Box>
   );
 };
 

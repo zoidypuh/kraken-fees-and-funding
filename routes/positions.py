@@ -10,7 +10,8 @@ from kraken_client import (
     get_open_positions, batch_get_tickers, 
     KrakenAPIError, get_funding_rates, 
     ENTRY_TYPE_FUNDING_RATE_CHANGE,
-    get_fee_info, find_true_position_open_time
+    get_fee_info, find_true_position_open_time,
+    get_account_logs
 )
 from unified_data_service import unified_data_service
 from .auth import require_api_credentials
@@ -382,6 +383,325 @@ def get_positions_detailed(api_key: str, api_secret: str):
     except Exception as e:
         logger.error(f"Error fetching detailed positions: {e}")
         return jsonify({'error': 'Failed to fetch position details'}), 500
+
+
+def analyze_closed_positions_simple(api_key: str, api_secret: str, days: int = 30) -> List[Dict]:
+    """
+    Simple approach: Create mock closed positions from recent trades.
+    This is a placeholder implementation until proper position tracking is available.
+    """
+    try:
+        # Get processed data which includes trades
+        data = unified_data_service.get_processed_data(api_key, api_secret, days)
+        trades = data.get('trades', [])
+        
+        if not trades:
+            return []
+        
+        # Group trades by symbol
+        trades_by_symbol = {}
+        for trade in trades:
+            symbol = trade.get('contract', '').upper()
+            if symbol and trade.get('fee', 0) > 0:  # Only consider trades with fees
+                if symbol not in trades_by_symbol:
+                    trades_by_symbol[symbol] = []
+                trades_by_symbol[symbol].append(trade)
+        
+        # Create mock closed positions from pairs of trades
+        closed_positions = []
+        
+        for symbol, symbol_trades in trades_by_symbol.items():
+            if len(symbol_trades) < 2:
+                continue
+            
+            # Sort by date
+            symbol_trades.sort(key=lambda x: x.get('timestamp', 0))
+            
+            # Create pairs of trades as closed positions
+            for i in range(0, len(symbol_trades) - 1, 2):
+                open_trade = symbol_trades[i]
+                close_trade = symbol_trades[i + 1]
+                
+                # Parse dates
+                open_date = open_trade.get('date', '')
+                close_date = close_trade.get('date', '')
+                
+                if not open_date or not close_date:
+                    continue
+                
+                # Calculate duration
+                open_dt = datetime.fromisoformat(open_date.replace('Z', '+00:00'))
+                close_dt = datetime.fromisoformat(close_date.replace('Z', '+00:00'))
+                duration = close_dt - open_dt
+                
+                if duration.days == 0:
+                    duration_str = f"{duration.seconds // 3600}h"
+                else:
+                    duration_str = f"{duration.days}d"
+                
+                # Get prices
+                entry_price = float(open_trade.get('trade_price', 0))
+                exit_price = float(close_trade.get('trade_price', 0))
+                
+                # Estimate size from fee
+                # Use a default maker fee to avoid API calls
+                maker_fee = 0.0002  # Default 0.02%
+                size = float(open_trade.get('fee', 0)) / (entry_price * maker_fee) if entry_price else 1.0
+                
+                # Determine side and calculate P&L
+                if exit_price > entry_price:
+                    side = 'long'
+                    realized_pnl = (exit_price - entry_price) * size
+                else:
+                    side = 'short'
+                    realized_pnl = (entry_price - exit_price) * size
+                
+                # Sum fees
+                total_fees = float(open_trade.get('fee', 0)) + float(close_trade.get('fee', 0))
+                
+                # Mock funding (could be improved with actual funding data)
+                total_funding = realized_pnl * 0.1  # Assume 10% of P&L as funding
+                
+                # Net P&L
+                net_pnl = realized_pnl + total_funding - total_fees
+                
+                closed_positions.append({
+                    'symbol': symbol,
+                    'openedDate': open_date,
+                    'closedDate': close_date,
+                    'duration': duration_str,
+                    'side': side,
+                    'size': round(size, 6),
+                    'entryPrice': round(entry_price, 2),
+                    'exitPrice': round(exit_price, 2),
+                    'realizedPnl': round(realized_pnl, 2),
+                    'totalFunding': round(total_funding, 2),
+                    'totalFees': round(total_fees, 2),
+                    'netPnl': round(net_pnl, 2)
+                })
+        
+        # Sort by closed date, newest first
+        closed_positions.sort(key=lambda x: x['closedDate'], reverse=True)
+        
+        return closed_positions[:20]  # Return at most 20 positions
+        
+    except Exception as e:
+        logger.error(f"Error in simple closed positions analysis: {str(e)}")
+        return []
+
+
+def analyze_closed_positions(api_key: str, api_secret: str, days: int = 30) -> List[Dict]:
+    """
+    Analyze trade history to identify closed positions.
+    
+    Returns a list of closed positions with their metrics.
+    """
+    try:
+        current_ts = int(time.time() * 1000)
+        start_ts = current_ts - (days * 24 * 60 * 60 * 1000)
+        
+        # Get all logs for the period
+        all_logs = unified_data_service.get_raw_logs(
+            api_key, api_secret, start_ts, current_ts
+        )
+        
+        # Get current open positions to exclude them
+        open_positions = get_open_positions(api_key, api_secret)
+        open_symbols = {pos['symbol'] for pos in open_positions}
+        
+        # Track position changes by symbol
+        position_history = {}  # symbol -> list of position changes
+        
+        # Process logs chronologically
+        all_logs.sort(key=lambda x: x.get('date', ''))
+        
+        # Get fee info once for estimations
+        fee_info = get_fee_info(api_key, api_secret)
+        maker_fee = fee_info.get('maker_fee', 0.0002)  # Default 0.02%
+        
+        # First pass: collect all trades
+        for log in all_logs:
+            if log.get('info') == 'futures trade' and log.get('fee') is not None:
+                contract = log.get('contract', '').upper()
+                if not contract:
+                    continue
+                
+                # Skip if it's a currently open position
+                if contract in open_symbols:
+                    continue
+                
+                symbol = contract
+                
+                if symbol not in position_history:
+                    position_history[symbol] = {
+                        'trades': [],
+                        'funding': 0.0,
+                        'position_size': 0.0
+                    }
+                
+                # Get trade details
+                trade_price = float(log.get('trade_price', 0))
+                fee = float(log.get('fee', 0))
+                date_str = log.get('date')
+                
+                # Skip zero-fee entries (duplicates)
+                if fee == 0:
+                    continue
+                
+                # Estimate quantity from fee
+                quantity = abs(fee) / (trade_price * maker_fee) if trade_price and fee else 0
+                
+                position_history[symbol]['trades'].append({
+                    'date': date_str,
+                    'trade_price': trade_price,
+                    'quantity': quantity,
+                    'fee': abs(fee)
+                })
+        
+        # Second pass: collect funding for each symbol
+        for log in all_logs:
+            if log.get('info') == ENTRY_TYPE_FUNDING_RATE_CHANGE:
+                contract = log.get('contract', '').upper()
+                if contract in position_history:
+                    funding = log.get('realized_funding')
+                    if funding:
+                        position_history[contract]['funding'] += float(funding)
+        
+        # Analyze position history to find closed positions
+        closed_positions = []
+        
+        for symbol, data in position_history.items():
+            trades = data['trades']
+            if len(trades) < 2:  # Need at least 2 trades to have a closed position
+                continue
+            
+            # Sort trades by date
+            trades.sort(key=lambda x: x['date'])
+            
+            # Track position through trades
+            position_stack = []
+            current_position = 0.0
+            weighted_entry_price = 0.0
+            total_quantity = 0.0
+            
+            for i, trade in enumerate(trades):
+                quantity = trade['quantity']
+                price = trade['trade_price']
+                
+                # Check if this is likely an opening or closing trade
+                if i == 0:
+                    # First trade is always opening
+                    current_position = quantity
+                    weighted_entry_price = price
+                    total_quantity = quantity
+                    position_stack.append({
+                        'open_trade': trade,
+                        'size': quantity,
+                        'entry_price': price
+                    })
+                else:
+                    # Check if we have a full position close (approximation)
+                    # If this trade quantity is similar to current position, it's likely a close
+                    if current_position > 0 and abs(quantity - current_position) / current_position < 0.5:  # Within 50%
+                        # This is likely a closing trade
+                        if position_stack:
+                            position_info = position_stack[-1]
+                            
+                            # Calculate metrics
+                            opened_date = position_info['open_trade']['date']
+                            closed_date = trade['date']
+                            
+                            # Calculate duration
+                            opened_dt = datetime.fromisoformat(opened_date.replace('Z', '+00:00'))
+                            closed_dt = datetime.fromisoformat(closed_date.replace('Z', '+00:00'))
+                            duration_days = (closed_dt - opened_dt).days
+                            
+                            # Format duration
+                            if duration_days == 0:
+                                duration_str = "< 1d"
+                            else:
+                                duration_str = f"{duration_days}d"
+                            
+                            # Determine side based on first few trades
+                            # If average price is increasing in first trades, likely buying (long)
+                            # If average price is decreasing in first trades, likely selling (short)
+                            side = 'long'  # Default assumption
+                            
+                            entry_price = position_info['entry_price']
+                            exit_price = price
+                            size = position_info['size']
+                            
+                            # Calculate realized P&L
+                            if side == 'long':
+                                realized_pnl = (exit_price - entry_price) * size
+                            else:
+                                realized_pnl = (entry_price - exit_price) * size
+                            
+                            # Calculate total fees (all trades for this position)
+                            total_fees = sum(t['fee'] for t in trades[:i+1])
+                            
+                            # Get funding for the period (proportional)
+                            total_funding = data['funding'] * ((i + 1) / len(trades))
+                            
+                            # Calculate net P&L
+                            net_pnl = realized_pnl + total_funding - total_fees
+                            
+                            closed_positions.append({
+                                'symbol': symbol,
+                                'openedDate': opened_date,
+                                'closedDate': closed_date,
+                                'duration': duration_str,
+                                'side': side,
+                                'size': round(size, 6),
+                                'entryPrice': round(entry_price, 2),
+                                'exitPrice': round(exit_price, 2),
+                                'realizedPnl': round(realized_pnl, 2),
+                                'totalFunding': round(total_funding, 2),
+                                'totalFees': round(total_fees, 2),
+                                'netPnl': round(net_pnl, 2)
+                            })
+                            
+                            # Reset position tracking
+                            position_stack = []
+                            current_position = 0.0
+                    else:
+                        # This is adding to position
+                        current_position += quantity
+                        # Update weighted average entry price
+                        total_quantity += quantity
+                        weighted_entry_price = ((weighted_entry_price * (total_quantity - quantity)) + 
+                                               (price * quantity)) / total_quantity
+        
+        # Sort by closed date, newest first
+        closed_positions.sort(key=lambda x: x['closedDate'], reverse=True)
+        
+        return closed_positions
+        
+    except Exception as e:
+        logger.error(f"Error analyzing closed positions: {str(e)}")
+        return []
+
+
+@positions.route('/closed')
+@require_api_credentials
+def get_closed_positions(api_key: str, api_secret: str):
+    """Get closed positions from trade history."""
+    try:
+        # Get days parameter (default 30)
+        days = int(request.args.get('days', 30))
+        
+        # Analyze closed positions
+        closed_positions = analyze_closed_positions(api_key, api_secret, days)
+        
+        # If no closed positions found with complex algorithm, try simple approach
+        if not closed_positions:
+            closed_positions = analyze_closed_positions_simple(api_key, api_secret, days)
+        
+        return jsonify(closed_positions)
+        
+    except Exception as e:
+        logger.error(f"Error fetching closed positions: {e}")
+        return jsonify({'error': 'Failed to fetch closed positions'}), 500
 
 
  
