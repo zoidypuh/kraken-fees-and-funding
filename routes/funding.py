@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 from statsmodels.tsa.arima.model import ARIMA
 import warnings
@@ -7,9 +7,9 @@ warnings.filterwarnings('ignore')
 
 from kraken_client import get_funding_rate, get_historical_funding, get_public_funding_rates, get_public_ticker
 
-funding = Blueprint('funding', __name__)
+funding = Blueprint('funding', __name__, url_prefix='/api/funding')
 
-@funding.route('/funding/history/<symbol>')
+@funding.route('/history/<symbol>')
 def get_funding_history(symbol):
     """Get funding rate history for a symbol with statistics and predictions"""
     try:
@@ -24,7 +24,7 @@ def get_funding_history(symbol):
             }
         
         # Get historical funding rates (last 30 days for analysis)
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=30)
         
         # Fetch historical funding data from public endpoint
@@ -55,11 +55,25 @@ def get_funding_history(symbol):
         last_8_hours = []
         
         for entry in historical_data:
-            entry_time = datetime.fromisoformat(entry['timestamp'].replace('Z', '+00:00'))
+            # Parse the timestamp properly
+            entry_time_str = entry['timestamp']
+            if isinstance(entry_time_str, str):
+                # Remove 'Z' suffix and add timezone info
+                entry_time = datetime.fromisoformat(entry_time_str.replace('Z', '+00:00'))
+            else:
+                # If it's already a datetime object
+                entry_time = entry_time_str
+                
+            # Make end_time timezone aware if it isn't
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+            if eight_hours_ago.tzinfo is None:
+                eight_hours_ago = eight_hours_ago.replace(tzinfo=timezone.utc)
+                
             if entry_time >= eight_hours_ago:
                 last_8_hours.append({
                     'time': entry_time.strftime('%Y-%m-%d %H:%M UTC'),
-                    'rate': float(entry['rate'])
+                    'rate': float(entry.get('rate', 0))
                 })
         
         # Sort by time descending (most recent first)
@@ -70,9 +84,19 @@ def get_funding_history(symbol):
         rates_30d = []
         rates_365d = []  # We'll extrapolate for 365d
         
+        # Make end_time timezone aware if it isn't
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
         for entry in historical_data:
-            entry_time = datetime.fromisoformat(entry['timestamp'].replace('Z', '+00:00'))
-            rate = abs(float(entry['rate']))  # Use absolute value
+            # Parse the timestamp properly
+            entry_time_str = entry['timestamp']
+            if isinstance(entry_time_str, str):
+                entry_time = datetime.fromisoformat(entry_time_str.replace('Z', '+00:00'))
+            else:
+                entry_time = entry_time_str
+                
+            rate = abs(float(entry.get('rate', 0)))  # Use absolute value
             
             days_ago = (end_time - entry_time).days
             
@@ -83,14 +107,14 @@ def get_funding_history(symbol):
             rates_365d.append(rate)  # Collect all for extrapolation
         
         # Calculate accumulated rates (sum of absolute values)
-        # Funding happens 3 times per day (every 8 hours)
+        # Funding happens every hour (24 times per day)
         accumulated_7d = sum(rates_7d)
         accumulated_30d = sum(rates_30d)
         
-        # Extrapolate for 365 days based on average daily rate
+        # Extrapolate for 365 days based on average hourly rate
         if rates_30d:
-            avg_daily_rate = (accumulated_30d / 30) * 3  # 3 funding periods per day
-            accumulated_365d = avg_daily_rate * 365 / 3
+            avg_hourly_rate = accumulated_30d / (30 * 24)  # Average per hour
+            accumulated_365d = avg_hourly_rate * 365 * 24  # 365 days * 24 hours
         else:
             accumulated_365d = 0
         
@@ -106,9 +130,9 @@ def get_funding_history(symbol):
             # Fallback: use simple average
             avg_rate = np.mean([abs(float(entry['rate'])) for entry in historical_data]) if historical_data else 0
             predictions = {
-                'predicted7d': avg_rate * 3 * 7,  # 3 times per day * 7 days
-                'predicted30d': avg_rate * 3 * 30,
-                'predicted365d': avg_rate * 3 * 365
+                'predicted7d': avg_rate * 24 * 7,  # 24 times per day * 7 days
+                'predicted30d': avg_rate * 24 * 30,
+                'predicted365d': avg_rate * 24 * 365
             }
         
         return jsonify({
@@ -128,33 +152,19 @@ def get_funding_history(symbol):
 
 
 def _format_time_until_next_funding():
-    """Calculate time until next funding (0:00, 8:00, or 16:00 UTC)"""
-    now = datetime.utcnow()
-    current_hour = now.hour
+    """Calculate time until next funding (top of the next hour)"""
+    now = datetime.now(timezone.utc)
     
-    # Funding times are 0:00, 8:00, 16:00 UTC
-    if current_hour < 8:
-        next_funding_hour = 8
-    elif current_hour < 16:
-        next_funding_hour = 16
-    else:
-        next_funding_hour = 0
+    # Next funding is at the top of the next hour
+    next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
     
-    if next_funding_hour == 0:
-        # Next funding is tomorrow at 00:00
-        next_funding = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-    else:
-        # Next funding is today
-        next_funding = now.replace(hour=next_funding_hour, minute=0, second=0, microsecond=0)
+    time_until = next_hour - now
+    minutes = int(time_until.total_seconds() // 60)
     
-    time_until = next_funding - now
-    hours = int(time_until.total_seconds() // 3600)
-    minutes = int((time_until.total_seconds() % 3600) // 60)
-    
-    return f"{hours}h {minutes}m"
+    return f"{minutes}m"
 
 
-def _predict_funding_rates(historical_rates, periods_ahead=365*3):
+def _predict_funding_rates(historical_rates, periods_ahead=365*24):
     """Predict future funding rates using ARIMA model"""
     try:
         # Use ARIMA model for time series prediction
@@ -166,9 +176,9 @@ def _predict_funding_rates(historical_rates, periods_ahead=365*3):
         forecast = model_fit.forecast(steps=periods_ahead)
         
         # Calculate accumulated predictions (absolute values)
-        # Funding happens 3 times per day
-        predicted_7d = sum(abs(x) for x in forecast[:3*7])
-        predicted_30d = sum(abs(x) for x in forecast[:3*30])
+        # Funding happens 24 times per day (every hour)
+        predicted_7d = sum(abs(x) for x in forecast[:24*7])
+        predicted_30d = sum(abs(x) for x in forecast[:24*30])
         predicted_365d = sum(abs(x) for x in forecast)
         
         return {
@@ -182,20 +192,20 @@ def _predict_funding_rates(historical_rates, periods_ahead=365*3):
         # Fallback to simple moving average
         avg_rate = np.mean(historical_rates[-30:]) if len(historical_rates) > 30 else np.mean(historical_rates)
         return {
-            'predicted7d': avg_rate * 3 * 7,
-            'predicted30d': avg_rate * 3 * 30,
-            'predicted365d': avg_rate * 3 * 365
+            'predicted7d': avg_rate * 24 * 7,
+            'predicted30d': avg_rate * 24 * 30,
+            'predicted365d': avg_rate * 24 * 365
         }
 
 
-@funding.route('/funding/predict/<symbol>')
+@funding.route('/predict/<symbol>')
 def predict_funding(symbol):
     """Get funding rate predictions for a symbol"""
     try:
         days = int(request.args.get('days', 30))
         
         # Get historical data for prediction
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=max(days, 30))
         
         historical_data = get_public_funding_rates(
@@ -214,7 +224,7 @@ def predict_funding(symbol):
         funding_rates.reverse()  # Make chronological
         
         # Get predictions
-        predictions = _predict_funding_rates(funding_rates, periods_ahead=days*3)
+        predictions = _predict_funding_rates(funding_rates, periods_ahead=days*24)
         
         return jsonify({
             'symbol': symbol,

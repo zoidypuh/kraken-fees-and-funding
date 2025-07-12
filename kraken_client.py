@@ -746,30 +746,30 @@ def get_public_funding_rates(symbol: str, start_time: str = None, end_time: str 
     """Get historical funding rates from public endpoint (no auth required)."""
     try:
         # Build URL for public endpoint
-        # According to Kraken docs, endpoint is /api/charts/v1/funding/{symbol}
-        url = f"{FUTURES_BASE_URL}/api/charts/v1/funding/{symbol}"
+        # Use the correct historical-funding-rates endpoint
+        url = f"{FUTURES_BASE_URL}/derivatives/api/v3/historical-funding-rates"
         
-        # Add time parameters if provided
-        params = {}
+        # Add parameters
+        params = {'symbol': symbol}
+        
         if start_time:
-            # Convert ISO to milliseconds if needed
+            # Convert ISO to milliseconds
             if isinstance(start_time, str) and 'T' in start_time:
                 start_ts = int(datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp() * 1000)
-                params['from'] = start_ts
+                params['since'] = start_ts
             else:
-                params['from'] = start_time
+                params['since'] = start_time
                 
         if end_time:
-            # Convert ISO to milliseconds if needed
+            # Convert ISO to milliseconds
             if isinstance(end_time, str) and 'T' in end_time:
                 end_ts = int(datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp() * 1000)
-                params['to'] = end_ts
+                params['before'] = end_ts
             else:
-                params['to'] = end_time
+                params['before'] = end_time
         
         # Make request
-        if params:
-            url += "?" + urllib.parse.urlencode(params)
+        url += "?" + urllib.parse.urlencode(params)
             
         logger.info(f"Fetching public funding rates from: {url}")
         
@@ -779,56 +779,46 @@ def get_public_funding_rates(symbol: str, start_time: str = None, end_time: str 
         
         logger.debug(f"Funding rates response: {json.dumps(data, indent=2)[:500]}")
         
-        # Process response - check different possible response formats
+        # Process response
         funding_data = []
         
-        # Check if it's a direct array response
+        # Check different possible response formats
+        rates_list = []
         if isinstance(data, list):
-            funding_data = data
-        # Check for nested structure
+            rates_list = data
         elif isinstance(data, dict):
-            # Try different possible field names
-            for field in ['fundingRates', 'rates', 'data', 'values']:
+            # Try different field names
+            for field in ['rates', 'fundingRates', 'data', 'history']:
                 if field in data:
-                    funding_data = data[field]
+                    rates_list = data[field]
                     break
         
-        # Format the data
-        formatted_rates = []
-        for rate_entry in funding_data:
-            # Handle both array and object formats
-            if isinstance(rate_entry, list) and len(rate_entry) >= 2:
-                # Array format: [timestamp, rate]
-                timestamp = rate_entry[0]
-                rate = rate_entry[1]
-            elif isinstance(rate_entry, dict):
-                # Object format
-                timestamp = rate_entry.get('timestamp', rate_entry.get('time', rate_entry.get('t')))
-                rate = rate_entry.get('fundingRate', rate_entry.get('rate', rate_entry.get('r', 0)))
-            else:
-                continue
+        # Process each rate entry
+        for rate_entry in rates_list:
+            if isinstance(rate_entry, dict):
+                # Extract timestamp and rate
+                timestamp = rate_entry.get('timestamp', rate_entry.get('effectiveTime'))
+                rate = rate_entry.get('fundingRate', rate_entry.get('rate', 0))
                 
-            if timestamp is not None and rate is not None:
-                # Convert timestamp to ISO format if needed
-                if isinstance(timestamp, (int, float)):
-                    # Assume milliseconds if large number
-                    if timestamp > 1e10:
-                        timestamp = timestamp / 1000
-                    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-                    timestamp = dt.isoformat()
-                
-                formatted_rates.append({
-                    'timestamp': timestamp,
-                    'rate': float(rate),  # This is already the absolute rate in USD per 1 BTC
-                    'symbol': symbol
-                })
+                if timestamp:
+                    # Convert timestamp to ISO format if it's a number
+                    if isinstance(timestamp, (int, float)):
+                        # Kraken uses milliseconds
+                        dt = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+                        timestamp = dt.isoformat()
+                    
+                    funding_data.append({
+                        'timestamp': timestamp,
+                        'rate': float(rate),  # This is the absolute rate in USD per 1 BTC
+                        'symbol': symbol
+                    })
         
         # Sort by timestamp (newest first)
-        formatted_rates.sort(key=lambda x: x['timestamp'], reverse=True)
+        funding_data.sort(key=lambda x: x['timestamp'], reverse=True)
         
-        logger.info(f"Parsed {len(formatted_rates)} funding rates")
+        logger.info(f"Parsed {len(funding_data)} funding rates")
         
-        return formatted_rates
+        return funding_data
         
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()

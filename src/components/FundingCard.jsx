@@ -124,7 +124,7 @@ const FundingCard = () => {
       <CardContent>
         {/* Title */}
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-          Bitcoin Perpetual Funding Rates
+          Bitcoin Perpetual Hourly Funding Rates
         </Typography>
 
         {loading ? (
@@ -155,7 +155,7 @@ const FundingCard = () => {
             {/* 8-Hour History Table */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-                Last 8 Hours Funding History
+                Hourly Funding History (Last 8 Hours)
               </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -271,7 +271,7 @@ const FundingCard = () => {
             {/* Model Info */}
             <Box sx={{ mt: 3, textAlign: 'center' }}>
               <Typography variant="caption" color="text.secondary">
-                Predictions based on ARIMA time series model with historical funding rate patterns
+                Predictions based on ARIMA time series model with hourly funding rate patterns
               </Typography>
             </Box>
           </>
