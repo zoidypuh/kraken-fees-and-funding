@@ -75,13 +75,15 @@ const FundingCard = () => {
   const formatAbsoluteRate = (rate) => {
     if (rate === null || rate === undefined) return '-';
     const absRate = Math.abs(parseFloat(rate));
-    return `${(absRate * 100).toFixed(4)}%`;
+    // Display as USD per 1 BTC with appropriate precision
+    return `$${absRate.toFixed(6)} per BTC`;
   };
 
   const formatAccumulatedRate = (rate) => {
     if (rate === null || rate === undefined) return '-';
     const absRate = Math.abs(parseFloat(rate));
-    return `${(absRate * 100).toFixed(2)}%`;
+    // Display accumulated USD per 1 BTC
+    return `$${absRate.toFixed(4)} per BTC`;
   };
 
   const StatBox = ({ title, value, icon, color = 'primary' }) => (
@@ -134,7 +136,7 @@ const FundingCard = () => {
             {/* Current Funding Rate */}
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                Current Funding Rate (Absolute)
+                Current Funding Rate (USD per 1 BTC)
               </Typography>
               <Typography 
                 variant="h2" 
@@ -160,7 +162,7 @@ const FundingCard = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Time</TableCell>
-                      <TableCell align="right">Funding Rate (Absolute)</TableCell>
+                      <TableCell align="right">Funding Rate (USD/BTC)</TableCell>
                       <TableCell align="right">Direction</TableCell>
                     </TableRow>
                   </TableHead>
@@ -201,7 +203,7 @@ const FundingCard = () => {
               <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
                   <History sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Historical Accumulated Funding (Absolute)
+                  Historical Accumulated Funding (USD per BTC)
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={4}>

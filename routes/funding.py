@@ -5,33 +5,30 @@ from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.filterwarnings('ignore')
 
-from utils.auth import require_auth
-from kraken_client import get_funding_rate, get_historical_funding, get_api_credentials
-from cache_service import cache
+from kraken_client import get_funding_rate, get_historical_funding, get_public_funding_rates, get_public_ticker
 
 funding = Blueprint('funding', __name__)
 
 @funding.route('/funding/history/<symbol>')
-@require_auth
 def get_funding_history(symbol):
     """Get funding rate history for a symbol with statistics and predictions"""
     try:
-        # Get API credentials
-        api_key, api_secret = get_api_credentials(request)
+        # Get current funding rate from public endpoint
+        current_ticker = get_public_ticker(symbol)
         
-        if not api_key or not api_secret:
-            return jsonify({'error': 'API credentials not found'}), 401
-        
-        # Get current funding rate
-        current_funding = get_funding_rate(api_key, api_secret, symbol)
+        current_rate_data = None
+        if current_ticker:
+            current_rate_data = {
+                'rate': current_ticker.get('fundingRate', 0),
+                'next_funding_time': _format_time_until_next_funding()
+            }
         
         # Get historical funding rates (last 30 days for analysis)
         end_time = datetime.utcnow()
         start_time = end_time - timedelta(days=30)
         
-        # Fetch historical funding data
-        historical_data = get_historical_funding(
-            api_key, api_secret,
+        # Fetch historical funding data from public endpoint
+        historical_data = get_public_funding_rates(
             symbol=symbol,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat()
@@ -52,14 +49,6 @@ def get_funding_history(symbol):
                     'predicted365d': 0
                 }
             })
-        
-        # Process current funding rate
-        current_rate_data = None
-        if current_funding:
-            current_rate_data = {
-                'rate': current_funding.get('rate', 0),
-                'next_funding_time': _format_time_until_next_funding()
-            }
         
         # Get last 8 hours of data (funding happens every 8 hours)
         eight_hours_ago = end_time - timedelta(hours=8)
@@ -200,24 +189,16 @@ def _predict_funding_rates(historical_rates, periods_ahead=365*3):
 
 
 @funding.route('/funding/predict/<symbol>')
-@require_auth
 def predict_funding(symbol):
     """Get funding rate predictions for a symbol"""
     try:
-        # Get API credentials
-        api_key, api_secret = get_api_credentials(request)
-        
-        if not api_key or not api_secret:
-            return jsonify({'error': 'API credentials not found'}), 401
-            
         days = int(request.args.get('days', 30))
         
         # Get historical data for prediction
         end_time = datetime.utcnow()
         start_time = end_time - timedelta(days=max(days, 30))
         
-        historical_data = get_historical_funding(
-            api_key, api_secret,
+        historical_data = get_public_funding_rates(
             symbol=symbol,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat()

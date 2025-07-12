@@ -686,10 +686,10 @@ def batch_get_tickers(api_key: str, api_secret: str, symbols: List[str]) -> Dict
 
 
 def get_funding_rate(api_key: str, api_secret: str, symbol: str) -> dict:
-    """Get current funding rate for a symbol."""
+    """Get current funding rate for a symbol using public endpoint."""
     try:
-        # Get funding rate from ticker endpoint
-        ticker_data = get_ticker(api_key, api_secret, symbol)
+        # Use public ticker endpoint
+        ticker_data = get_public_ticker(symbol)
         
         if ticker_data:
             funding_rate = ticker_data.get('fundingRate', 0)
@@ -708,46 +708,141 @@ def get_funding_rate(api_key: str, api_secret: str, symbol: str) -> dict:
         return None
 
 
-def get_historical_funding(api_key: str, api_secret: str, symbol: str, start_time: str, end_time: str) -> list:
-    """Get historical funding rate data for a symbol."""
+def get_public_ticker(symbol: str) -> dict:
+    """Get ticker data from public endpoint (no auth required)."""
     try:
-        # Convert ISO timestamps to milliseconds
-        start_ts = int(datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp() * 1000)
-        end_ts = int(datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp() * 1000)
+        # Build URL for public ticker endpoint
+        url = f"{FUTURES_BASE_URL}/derivatives/api/v3/tickers/{symbol}"
         
-        # Fetch account logs for funding rate changes
-        logs = get_account_logs(
-            api_key, api_secret, 
-            start_ts, end_ts,
-            entry_type=ENTRY_TYPE_FUNDING_RATE_CHANGE
-        )
+        logger.info(f"Fetching public ticker from: {url}")
         
-        # Filter and format funding data
-        funding_history = []
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
         
-        for log in logs:
-            log_contract = log.get("contract", "")
+        # Check for errors
+        if data.get("result") == "error":
+            error_msg = data.get("error", "Unknown error")
+            logger.error(f"API error: {error_msg}")
+            return None
             
-            # Check if this log is for the requested symbol
-            if symbol.upper() in log_contract.upper():
-                funding_rate = log.get('funding_rate')
-                date_str = log.get('date')
+        # For ticker endpoint, data might be directly returned or in 'tickers' field
+        if "tickers" in data and isinstance(data["tickers"], list) and len(data["tickers"]) > 0:
+            return data["tickers"][0]
+        else:
+            # Direct response
+            return data
+            
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        logger.error(f"HTTP error {e.code}: {error_body}")
+        return None
+    except Exception as e:
+        logger.error(f"Error getting public ticker for {symbol}: {str(e)}")
+        return None
+
+
+def get_public_funding_rates(symbol: str, start_time: str = None, end_time: str = None) -> list:
+    """Get historical funding rates from public endpoint (no auth required)."""
+    try:
+        # Build URL for public endpoint
+        # According to Kraken docs, endpoint is /api/charts/v1/funding/{symbol}
+        url = f"{FUTURES_BASE_URL}/api/charts/v1/funding/{symbol}"
+        
+        # Add time parameters if provided
+        params = {}
+        if start_time:
+            # Convert ISO to milliseconds if needed
+            if isinstance(start_time, str) and 'T' in start_time:
+                start_ts = int(datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp() * 1000)
+                params['from'] = start_ts
+            else:
+                params['from'] = start_time
                 
-                if funding_rate is not None and date_str:
-                    funding_history.append({
-                        'timestamp': date_str,
-                        'rate': float(funding_rate),
-                        'contract': log_contract
-                    })
+        if end_time:
+            # Convert ISO to milliseconds if needed
+            if isinstance(end_time, str) and 'T' in end_time:
+                end_ts = int(datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp() * 1000)
+                params['to'] = end_ts
+            else:
+                params['to'] = end_time
+        
+        # Make request
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
+            
+        logger.info(f"Fetching public funding rates from: {url}")
+        
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+        
+        logger.debug(f"Funding rates response: {json.dumps(data, indent=2)[:500]}")
+        
+        # Process response - check different possible response formats
+        funding_data = []
+        
+        # Check if it's a direct array response
+        if isinstance(data, list):
+            funding_data = data
+        # Check for nested structure
+        elif isinstance(data, dict):
+            # Try different possible field names
+            for field in ['fundingRates', 'rates', 'data', 'values']:
+                if field in data:
+                    funding_data = data[field]
+                    break
+        
+        # Format the data
+        formatted_rates = []
+        for rate_entry in funding_data:
+            # Handle both array and object formats
+            if isinstance(rate_entry, list) and len(rate_entry) >= 2:
+                # Array format: [timestamp, rate]
+                timestamp = rate_entry[0]
+                rate = rate_entry[1]
+            elif isinstance(rate_entry, dict):
+                # Object format
+                timestamp = rate_entry.get('timestamp', rate_entry.get('time', rate_entry.get('t')))
+                rate = rate_entry.get('fundingRate', rate_entry.get('rate', rate_entry.get('r', 0)))
+            else:
+                continue
+                
+            if timestamp is not None and rate is not None:
+                # Convert timestamp to ISO format if needed
+                if isinstance(timestamp, (int, float)):
+                    # Assume milliseconds if large number
+                    if timestamp > 1e10:
+                        timestamp = timestamp / 1000
+                    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+                    timestamp = dt.isoformat()
+                
+                formatted_rates.append({
+                    'timestamp': timestamp,
+                    'rate': float(rate),  # This is already the absolute rate in USD per 1 BTC
+                    'symbol': symbol
+                })
         
         # Sort by timestamp (newest first)
-        funding_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        formatted_rates.sort(key=lambda x: x['timestamp'], reverse=True)
         
-        return funding_history
+        logger.info(f"Parsed {len(formatted_rates)} funding rates")
         
-    except Exception as e:
-        logger.error(f"Error getting historical funding for {symbol}: {str(e)}")
+        return formatted_rates
+        
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        logger.error(f"HTTP error {e.code}: {error_body}")
         return []
+    except Exception as e:
+        logger.error(f"Error getting public funding rates for {symbol}: {str(e)}")
+        return []
+
+
+def get_historical_funding(api_key: str, api_secret: str, symbol: str, start_time: str, end_time: str) -> list:
+    """Get historical funding rate data for a symbol using public endpoint."""
+    # Use the public endpoint which doesn't require auth
+    return get_public_funding_rates(symbol, start_time, end_time)
 
 
  
