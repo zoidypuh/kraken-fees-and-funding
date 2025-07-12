@@ -685,4 +685,69 @@ def batch_get_tickers(api_key: str, api_secret: str, symbols: List[str]) -> Dict
     return tickers
 
 
+def get_funding_rate(api_key: str, api_secret: str, symbol: str) -> dict:
+    """Get current funding rate for a symbol."""
+    try:
+        # Get funding rate from ticker endpoint
+        ticker_data = get_ticker(api_key, api_secret, symbol)
+        
+        if ticker_data:
+            funding_rate = ticker_data.get('fundingRate', 0)
+            funding_rate_prediction = ticker_data.get('fundingRatePrediction', 0)
+            
+            return {
+                'rate': funding_rate,
+                'prediction': funding_rate_prediction,
+                'symbol': symbol
+            }
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error getting funding rate for {symbol}: {str(e)}")
+        return None
+
+
+def get_historical_funding(api_key: str, api_secret: str, symbol: str, start_time: str, end_time: str) -> list:
+    """Get historical funding rate data for a symbol."""
+    try:
+        # Convert ISO timestamps to milliseconds
+        start_ts = int(datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp() * 1000)
+        end_ts = int(datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp() * 1000)
+        
+        # Fetch account logs for funding rate changes
+        logs = get_account_logs(
+            api_key, api_secret, 
+            start_ts, end_ts,
+            entry_type=ENTRY_TYPE_FUNDING_RATE_CHANGE
+        )
+        
+        # Filter and format funding data
+        funding_history = []
+        
+        for log in logs:
+            log_contract = log.get("contract", "")
+            
+            # Check if this log is for the requested symbol
+            if symbol.upper() in log_contract.upper():
+                funding_rate = log.get('funding_rate')
+                date_str = log.get('date')
+                
+                if funding_rate is not None and date_str:
+                    funding_history.append({
+                        'timestamp': date_str,
+                        'rate': float(funding_rate),
+                        'contract': log_contract
+                    })
+        
+        # Sort by timestamp (newest first)
+        funding_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return funding_history
+        
+    except Exception as e:
+        logger.error(f"Error getting historical funding for {symbol}: {str(e)}")
+        return []
+
+
  

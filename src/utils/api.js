@@ -86,4 +86,11 @@ export const getFundingData = (days = 7) =>
 export const getSummary = (days = 7) =>
   api.get(`/analytics/summary?days=${days}`);
 
+// Funding endpoints
+export const getFundingHistory = (symbol) =>
+  api.get(`/funding/history/${symbol}`);
+
+export const getPredictedFunding = (symbol, days) =>
+  api.get(`/funding/predict/${symbol}`, { params: { days } });
+
 export default api; 

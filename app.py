@@ -74,6 +74,7 @@ def register_routes(app):
     from routes.analytics import analytics
     from routes.market import market
     from routes.volumes import volumes
+    from routes.funding import funding
     
     # Register blueprints
     app.register_blueprint(auth)
@@ -81,6 +82,7 @@ def register_routes(app):
     app.register_blueprint(analytics)
     app.register_blueprint(market)
     app.register_blueprint(volumes)
+    app.register_blueprint(funding)
     
     # Don't handle root route in Flask - let App Engine serve static files
     # The root route will be handled by app.yaml static handlers

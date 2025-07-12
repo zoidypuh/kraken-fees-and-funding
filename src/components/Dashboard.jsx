@@ -20,6 +20,7 @@ import PositionsCard from './PositionsCard';
 import ChartCard from './ChartCard';
 import SummaryCards from './SummaryCards';
 import VolumeCard from './VolumeCard';
+import FundingCard from './FundingCard';
 import { getFeeInfo } from '../utils/api';
 
 const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) => {
@@ -158,10 +159,15 @@ const Dashboard = ({ darkMode, toggleDarkMode, authenticated, onAuthRequired }) 
                   />
                 </Box>
               </>
-            ) : (
+            ) : view === 'volume' ? (
               /* Trading Volume View */
               <Box sx={{ mb: 3 }}>
                 <VolumeCard />
+              </Box>
+            ) : (
+              /* Funding View */
+              <Box sx={{ mb: 3 }}>
+                <FundingCard />
               </Box>
             )}
           </Box>

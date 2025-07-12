@@ -22,6 +22,7 @@ import {
   ShowChart,
   TableChart,
   CurrencyBitcoin,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { formatPercentage, formatCurrency } from '../utils/formatters';
 import { getTicker } from '../utils/api';
@@ -145,22 +146,33 @@ const Header = ({ darkMode, toggleDarkMode, feeInfo, onAuthClick, view, onViewCh
               value="positions" 
               sx={{ px: 2 }}
             >
-              <TableChart sx={{ mr: 1 }} />
-              Positions
+              <Tooltip title="Positions">
+                <TableChart />
+              </Tooltip>
             </ToggleButton>
             <ToggleButton 
               value="trading" 
               sx={{ px: 2 }}
             >
-              <ShowChart sx={{ mr: 1 }} />
-              Trading Cost Activity
+              <Tooltip title="Trading Cost Activity">
+                <ShowChart />
+              </Tooltip>
             </ToggleButton>
             <ToggleButton 
               value="volume" 
               sx={{ px: 2 }}
             >
-              <TrendingUp sx={{ mr: 1 }} />
-              Trading Volume
+              <Tooltip title="Trading Volume">
+                <TrendingUp />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton 
+              value="funding" 
+              sx={{ px: 2 }}
+            >
+              <Tooltip title="Funding Rates">
+                <AccountBalanceWallet />
+              </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
