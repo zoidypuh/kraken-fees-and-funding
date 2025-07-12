@@ -105,6 +105,24 @@ const PositionsCard = ({ onRefresh }) => {
     }
   }, []);
 
+  const loadClosedPositions = useCallback(async () => {
+    try {
+      setClosedPositionsLoading(true);
+      setClosedPositionsError(null);
+      
+      const response = await getClosedPositions(30); // Get last 30 days of closed positions
+      
+      if (response.data && Array.isArray(response.data)) {
+        setClosedPositions(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading closed positions:', error);
+      setClosedPositionsError('Failed to load closed positions');
+    } finally {
+      setClosedPositionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let interval;
     let mounted = true;
@@ -199,24 +217,6 @@ const PositionsCard = ({ onRefresh }) => {
     
     if (onRefresh) onRefresh();
   };
-
-  const loadClosedPositions = useCallback(async () => {
-    try {
-      setClosedPositionsLoading(true);
-      setClosedPositionsError(null);
-      
-      const response = await getClosedPositions(30); // Get last 30 days of closed positions
-      
-      if (response.data && Array.isArray(response.data)) {
-        setClosedPositions(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading closed positions:', error);
-      setClosedPositionsError('Failed to load closed positions');
-    } finally {
-      setClosedPositionsLoading(false);
-    }
-  }, []);
 
   const getRowColor = (position) => {
     if (position.netUnrealizedPnl > 0) {

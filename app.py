@@ -32,7 +32,7 @@ limiter = Limiter(
 
 def create_app(config_name=None):
     """Create and configure the Flask application."""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='dist', static_url_path='/')
     
     # Configure Flask directly with environment variables
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
@@ -86,6 +86,17 @@ def register_routes(app):
     
     # Don't handle root route in Flask - let App Engine serve static files
     # The root route will be handled by app.yaml static handlers
+    
+    # For local development, serve the React app
+    @app.route('/')
+    @app.route('/<path:path>')
+    def serve_react_app(path=''):
+        """Serve the React app for all non-API routes."""
+        # If it's an API route, let it 404
+        if path.startswith('api/'):
+            return jsonify({'error': 'Endpoint not found'}), 404
+        # Otherwise serve the React app
+        return app.send_static_file('index.html')
     
     # Health check
     @app.route('/health')
